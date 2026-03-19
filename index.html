@@ -9,6 +9,7 @@
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -1211,15 +1212,9 @@
                     </div>
                 </div>
                 
-                <div class="space-y-4">
-                    <div v-for="(preset, index) in presets" :key="index"
-                         class="bg-white p-4 rounded-xl border border-gray-200 flex items-center justify-between group shadow-sm hover:shadow-md transition-all"
-                         :class="{'opacity-50 border-dashed border-primary-400': draggedPresetIndex === index}"
-                         draggable="true"
-                         @dragstart="handleDragStart(index, $event)"
-                         @dragover.prevent
-                         @drop="handleDrop(index)"
-                         @dragend="handleDragEnd">
+                <div id="presets-list" class="space-y-4">
+                    <div v-for="(preset, index) in presets" :key="preset.name + index"
+                         class="bg-white p-4 rounded-xl border border-gray-200 flex items-center justify-between group shadow-sm hover:shadow-md transition-all">
                         <div class="flex items-center flex-1">
                             <div class="cursor-move text-gray-400 mr-3 hover:text-gray-600" title="拖动排序">
                                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"></path></svg>
