@@ -4200,7 +4200,7 @@ ${textContent}`;
 
             // 1.10 Enforce Default Preset (COT)
             const cotPresetName = 'COT';
-            const cotPresetContent = '请在正文输出前，使用markdown格式，以 <cot>...思考内容...<cot> 的方式严密，详细地分析角色卡和世界背景设定，历史对话，用户输入，bio偏好以及系统规则等信息，确保符合设定，未触犯禁止规则且符合逻辑后再进行正文的输出，并注意分析是否需要使用bio工具记录用户偏好，规范格式为 <cot>... <cot>，确保开头结尾都有<cot>标签。';
+            const cotPresetContent = '请在正文输出前，使用markdown格式，以 <cot>...思考内容...<cot> 的方式严密，详细地回顾系统规则，分析当前情景，结合历史对话，剖析用户输入，注意bio偏好等信息，确保完全遵守观察员的指令，进行预演并确认符合逻辑后再进行正文的输出，规范格式为 <cot>... <cot>，确保开头结尾都有<cot>标签。';
             const existingCotPreset = presets.value.find(p => p.name === cotPresetName);
 
             if (!existingCotPreset) {
