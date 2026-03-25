@@ -124,31 +124,40 @@
 
         <!-- Mobile Sidebar Overlay -->
         <div v-if="showMobileMenu" @click="showMobileMenu = false"
-            class="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 md:hidden transition-opacity animate-fade-in mobile-overlay"></div>
+            class="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 md:hidden transition-opacity animate-fade-in mobile-overlay">
+        </div>
 
         <!-- Sidebar (Desktop & Mobile Drawer) -->
         <div
             :class="['fixed inset-y-0 left-0 z-50 bg-white border-r border-gray-200 transform transition-all duration-300 md:relative md:translate-x-0 flex flex-col shadow-lg md:shadow-none md:rounded-none rounded-r-2xl', showMobileMenu ? 'translate-x-0' : '-translate-x-full', isSidebarCollapsed ? 'md:w-16' : 'md:w-72', 'w-72']">
             <!-- Sidebar Header -->
-            <div class="h-16 flex items-center border-b border-gray-100 transition-all duration-300" :class="isSidebarCollapsed ? 'justify-center px-0' : 'justify-between px-6'">
+            <div class="h-16 flex items-center border-b border-gray-100 transition-all duration-300"
+                :class="isSidebarCollapsed ? 'justify-center px-0' : 'justify-between px-6'">
                 <div v-show="!isSidebarCollapsed"
                     class="font-bold text-xl bg-gradient-to-r from-primary-600 to-purple-600 bg-clip-text text-transparent whitespace-nowrap overflow-hidden">
                     RolePlay Hub</div>
-                <button @click="isSidebarCollapsed = !isSidebarCollapsed" class="hidden md:flex p-1.5 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors" :title="isSidebarCollapsed ? '展开侧边栏' : '收起侧边栏'">
-                    <svg v-if="!isSidebarCollapsed" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7M20 12H4"></path>
+                <button @click="isSidebarCollapsed = !isSidebarCollapsed"
+                    class="hidden md:flex p-1.5 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors"
+                    :title="isSidebarCollapsed ? '展开侧边栏' : '收起侧边栏'">
+                    <svg v-if="!isSidebarCollapsed" class="w-5 h-5" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M11 19l-7-7 7-7M20 12H4"></path>
                     </svg>
                     <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M4 12h16"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M4 12h16">
+                        </path>
                     </svg>
                 </button>
             </div>
 
             <!-- Navigation -->
-            <div class="flex-1 overflow-y-auto py-4 transition-all duration-300" :class="isSidebarCollapsed ? 'px-2 space-y-4' : 'px-3 space-y-1'">
+            <div class="flex-1 overflow-y-auto py-4 transition-all duration-300"
+                :class="isSidebarCollapsed ? 'px-2 space-y-4' : 'px-3 space-y-1'">
                 <button @click="currentView = 'chat'; showMobileMenu = false"
                     :class="['w-full flex items-center rounded-lg transition-all duration-200 font-medium', currentView === 'chat' ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900', isSidebarCollapsed ? 'justify-center px-0 py-3' : 'px-3 py-2']">
-                    <svg class="w-5 h-5" :class="isSidebarCollapsed ? 'mr-0' : 'mr-3'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-5 h-5" :class="isSidebarCollapsed ? 'mr-0' : 'mr-3'" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z">
                         </path>
@@ -157,7 +166,8 @@
                 </button>
                 <button @click="currentView = 'characters'; showMobileMenu = false"
                     :class="['w-full flex items-center rounded-lg transition-all duration-200 font-medium', currentView === 'characters' ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900', isSidebarCollapsed ? 'justify-center px-0 py-3' : 'px-3 py-2']">
-                    <svg class="w-5 h-5" :class="isSidebarCollapsed ? 'mr-0' : 'mr-3'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-5 h-5" :class="isSidebarCollapsed ? 'mr-0' : 'mr-3'" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z">
                         </path>
@@ -166,7 +176,8 @@
                 </button>
                 <button @click="currentView = 'generator'; showMobileMenu = false"
                     :class="['w-full flex items-center rounded-lg transition-all duration-200 font-medium', currentView === 'generator' ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900', isSidebarCollapsed ? 'justify-center px-0 py-3' : 'px-3 py-2']">
-                    <svg class="w-5 h-5" :class="isSidebarCollapsed ? 'mr-0' : 'mr-3'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-5 h-5" :class="isSidebarCollapsed ? 'mr-0' : 'mr-3'" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M13 10V3L4 14h7v7l9-11h-7z"></path>
                     </svg>
@@ -174,7 +185,8 @@
                 </button>
                 <button @click="currentView = 'presets'; showMobileMenu = false"
                     :class="['w-full flex items-center rounded-lg transition-all duration-200 font-medium', currentView === 'presets' ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900', isSidebarCollapsed ? 'justify-center px-0 py-3' : 'px-3 py-2']">
-                    <svg class="w-5 h-5" :class="isSidebarCollapsed ? 'mr-0' : 'mr-3'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-5 h-5" :class="isSidebarCollapsed ? 'mr-0' : 'mr-3'" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4">
                         </path>
@@ -183,7 +195,8 @@
                 </button>
                 <button @click="currentView = 'worldinfo'; showMobileMenu = false"
                     :class="['w-full flex items-center rounded-lg transition-all duration-200 font-medium', currentView === 'worldinfo' ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900', isSidebarCollapsed ? 'justify-center px-0 py-3' : 'px-3 py-2']">
-                    <svg class="w-5 h-5" :class="isSidebarCollapsed ? 'mr-0' : 'mr-3'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-5 h-5" :class="isSidebarCollapsed ? 'mr-0' : 'mr-3'" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253">
                         </path>
@@ -192,7 +205,8 @@
                 </button>
                 <button @click="currentView = 'regex'; showMobileMenu = false"
                     :class="['w-full flex items-center rounded-lg transition-all duration-200 font-medium', currentView === 'regex' ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900', isSidebarCollapsed ? 'justify-center px-0 py-3' : 'px-3 py-2']">
-                    <svg class="w-5 h-5" :class="isSidebarCollapsed ? 'mr-0' : 'mr-3'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-5 h-5" :class="isSidebarCollapsed ? 'mr-0' : 'mr-3'" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
                     </svg>
@@ -200,7 +214,8 @@
                 </button>
                 <button @click="currentView = 'settings'; showMobileMenu = false"
                     :class="['w-full flex items-center rounded-lg transition-all duration-200 font-medium', currentView === 'settings' ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900', isSidebarCollapsed ? 'justify-center px-0 py-3' : 'px-3 py-2']">
-                    <svg class="w-5 h-5" :class="isSidebarCollapsed ? 'mr-0' : 'mr-3'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-5 h-5" :class="isSidebarCollapsed ? 'mr-0' : 'mr-3'" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
                         </path>
@@ -237,7 +252,7 @@
                 enter-to-class="opacity-100" leave-active-class="transition duration-300 ease-in"
                 leave-from-class="opacity-100" leave-to-class="opacity-0">
                 <div v-if="isSummarizing"
-                    class="absolute inset-0 z-[80] flex flex-col items-center justify-center bg-indigo-950/60 backdrop-blur-xl transition-all summarize-overlay">
+                    class="absolute inset-0 z-[80] flex flex-col items-center justify-center bg-indigo-900/40 md:bg-indigo-950/60 backdrop-blur-lg md:backdrop-blur-xl transition-all summarize-overlay">
                     <div class="relative">
                         <div
                             class="w-20 h-20 border-4 border-indigo-400/20 border-t-indigo-500 rounded-full animate-spin">
@@ -251,12 +266,19 @@
                             </svg>
                         </div>
                     </div>
-                    <div class="mt-8 text-white text-center px-10">
+                    <div class="mt-8 text-white text-center px-10 w-full max-w-2xl">
                         <h2
                             class="text-xl font-black mb-2 tracking-widest uppercase bg-clip-text text-transparent bg-gradient-to-r from-indigo-200 to-white">
                             正在深度总结剧情</h2>
-                        <p class="text-indigo-200/60 text-xs max-w-xs mx-auto leading-relaxed font-medium">
+                        <p v-if="!currentSummaryStreamingContent"
+                            class="text-indigo-200/60 text-xs max-w-xs mx-auto leading-relaxed font-medium">
                             系统正在为您梳理长篇对话中的关键事件并精简上下文记忆，请稍候...</p>
+                        <div v-else
+                            class="mt-6 text-left p-4 md:p-5 bg-indigo-800/20 md:bg-indigo-900/40 rounded-xl border border-indigo-300/20 md:border-indigo-400/30 max-h-[40vh] overflow-y-auto custom-scrollbar backdrop-blur-md shadow-lg"
+                            id="summary-stream-container">
+                            <div class="markdown-body text-indigo-50 md:text-indigo-100 text-[14px] md:text-[15px] leading-relaxed"
+                                v-html="renderMarkdown(currentSummaryStreamingContent, 'assistant', true)"></div>
+                        </div>
                     </div>
                     <div class="mt-10 flex space-x-3">
                         <div class="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce [animation-delay:-0.3s]">
@@ -513,17 +535,18 @@
 
                             <!-- Message Column -->
                             <div
-                                :class="['flex flex-col min-w-0', (parseCot(msg.content).cot) ? 'w-full' : '', msg.isSelf ? 'items-end' : 'items-start']">
+                                :class="['flex flex-col min-w-0', (parseCot(msg.content).cot || msg.isSummary) ? 'w-full' : '', msg.isSelf ? 'items-end' : 'items-start']">
                                 <!-- Name (Outside Bubble) -->
                                 <div
                                     :class="['text-[10px] font-bold text-gray-600 mb-1 select-none px-1.5 py-0.5 rounded-md bg-white/50 backdrop-blur-sm border border-white/20 w-fit shadow-sm truncate max-w-[150px] md:max-w-[250px] msg-name-tag', msg.isSelf ? 'ml-auto mr-1' : 'mr-auto ml-1']">
                                     {{ msg.name || (msg.role === 'user' ? user.name : 'Unknown') }}
                                 </div>
                                 <!-- Message Bubble -->
-                                <div class="group relative" :class="{'w-full': parseCot(msg.content).cot}">
+                                <div class="group relative"
+                                    :class="{'w-full': parseCot(msg.content).cot || msg.isSummary}">
                                     <div
                                         :class="['p-0 rounded-2xl shadow-sm text-sm md:text-base leading-relaxed overflow-hidden',
-                                        (parseCot(msg.content).cot) ? 'w-full' : '',
+                                        (parseCot(msg.content).cot || msg.isSummary) ? 'w-full' : '',
                                         msg.role === 'user' ? (msg.isSelf ? 'bg-blue-50/85 text-gray-900 rounded-tr-none shadow-[0_4px_12px_rgba(59,130,246,0.1)] border border-primary-300/50' : 'bg-white/70 text-gray-800 rounded-tl-none border border-white/40 shadow-card') :
                                         msg.role === 'system' ? 'bg-red-50/70 text-red-800 border border-red-200/40' :
                                         'bg-white/70 text-gray-800 border border-white/40 shadow-card',
@@ -551,25 +574,31 @@
                                                 v-text="msg.content"></div>
                                         </div>
                                         <div v-else-if="msg.isSummary"
-                                            class="w-full bg-indigo-50/80 backdrop-blur-sm border border-indigo-100/50 rounded-[20px] p-4 md:p-5 shadow-[0_4px_12px_rgba(99,102,241,0.08)] relative overflow-hidden group transition-all duration-300 summary-msg-box">
+                                            class="w-full bg-gradient-to-br from-indigo-50/90 to-blue-50/50 backdrop-blur-xl border border-indigo-200/60 rounded-xl p-4 md:p-5 shadow-[0_8px_30px_rgba(99,102,241,0.06)] relative overflow-hidden group transition-all duration-500 hover:shadow-[0_8px_30px_rgba(99,102,241,0.12)]">
                                             <div
-                                                class="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-indigo-400 to-indigo-600">
+                                                class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-400 via-purple-400 to-blue-400 opacity-80">
+                                            </div>
+                                            <!-- decorative background element -->
+                                            <div
+                                                class="absolute -right-6 -top-6 w-32 h-32 bg-indigo-400/10 rounded-full blur-3xl pointer-events-none">
                                             </div>
                                             <div
-                                                class="flex items-center text-indigo-800 font-bold mb-3 text-sm md:text-base justify-between">
-                                                <div class="flex items-center cursor-pointer select-none"
+                                                class="flex items-center text-indigo-900 font-black tracking-wide mb-4 text-[15px] flex-row justify-between border-b border-indigo-100/50 pb-3">
+                                                <div class="flex items-center cursor-pointer select-none relative z-10"
                                                     @click="msg.isCollapsed = !msg.isCollapsed">
-                                                    <svg class="w-5 h-5 mr-2 text-indigo-500 transition-transform duration-300"
+                                                    <svg class="w-4 h-4 mr-1.5 text-indigo-500 transition-transform duration-300 shadow-sm"
                                                         :class="{'rotate-[-90deg]': msg.isCollapsed}" fill="none"
                                                         stroke="currentColor" viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round"
                                                             stroke-width="2" d="M19 9l-7 7-7-7"></path>
                                                     </svg>
-                                                    前情提要 / 记忆归档
+                                                    <span
+                                                        class="bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600">剧情总览
+                                                        · 记忆节点</span>
                                                 </div>
                                                 <button @click="deleteMessage(index)"
-                                                    class="p-1 md:p-1.5 text-indigo-300 hover:text-red-500 bg-white/50 hover:bg-white rounded-full transition-all"
-                                                    title="删除总结">
+                                                    class="p-1 md:p-1.5 text-indigo-300 hover:text-red-500 bg-white/60 backdrop-blur hover:bg-white rounded-full transition-all shadow-sm border border-transparent hover:border-red-100 relative z-10 translate-x-1 md:translate-x-1.5"
+                                                    title="删除这部分记忆">
                                                     <svg class="w-4 h-4" fill="none" stroke="currentColor"
                                                         viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round"
@@ -580,11 +609,11 @@
                                                 </button>
                                             </div>
                                             <div v-if="!msg.isCollapsed"
-                                                class="text-indigo-950/80 text-sm leading-relaxed markdown-body animate-fade-in"
-                                                v-html="renderMarkdown(msg.content, 'assistant')"></div>
+                                                class="text-gray-700/90 text-[14px] md:text-[15px] leading-relaxed markdown-body animate-fade-in relative z-10 font-medium"
+                                                v-html="renderMarkdown(msg.content, 'assistant', true)"></div>
                                             <div v-else @click="msg.isCollapsed = false"
-                                                class="text-indigo-400/70 text-xs italic cursor-pointer hover:text-indigo-500 transition-colors select-none py-1 animate-fade-in">
-                                                点击展开历史摘要...
+                                                class="text-indigo-400/80 text-[13px] font-medium cursor-pointer flex items-center hover:text-indigo-600 transition-colors select-none py-2 animate-fade-in text-center justify-center bg-indigo-100/30 rounded-lg border border-indigo-100/50 relative z-10">
+                                                点击展开此阶段的详细剧情回顾
                                             </div>
                                         </div>
                                         <div v-else class="message-content-wrapper"
@@ -735,197 +764,198 @@
                     <div
                         class="w-full md:max-w-3xl md:pointer-events-auto md:p-4 md:bg-white/70 md:backdrop-blur-xl md:border md:border-white/40 md:shadow-[0_8px_32px_rgba(0,0,0,0.12)] md:rounded-[2.5rem] md:ring-1 md:ring-black/5 transition-all duration-300 input-island">
                         <!-- Suggestion Bubbles (Absolute positioned above the bar) -->
-                    <div v-if="suggestedReplies.length > 0"
-                        class="absolute bottom-full left-0 right-0 p-2 pointer-events-none z-50">
-                        <div
-                            class="w-full flex flex-col gap-2.5 px-1 items-start pointer-events-auto animate-slide-up">
-                            <button v-for="(reply, idx) in suggestedReplies" :key="idx"
-                                @click="userInput = reply; suggestedReplies = []"
-                                class="bg-white/95 hover:bg-white hover:border-primary-400 hover:text-primary-600 hover:shadow-primary-500/10 backdrop-blur-xl border border-gray-200/80 shadow-xl text-xs md:text-sm text-gray-800 px-5 py-3.5 rounded-2xl rounded-bl-sm transition-all cursor-pointer text-left w-auto max-w-[90%] md:max-w-[85%] hover:-translate-y-1 active:scale-[0.98] leading-relaxed font-semibold suggest-btn"
-                                :title="reply">
-                                {{ reply }}
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="relative w-full flex justify-between items-center mb-2 px-1">
-                        <!-- Left controls: Suggest & AutoImage -->
-                        <div class="flex items-center gap-2">
-                            <!-- Suggestion Button -->
-                            <button @click="generateSuggestions"
-                                class="bg-white/90 backdrop-blur-md rounded-full w-8 h-8 flex items-center justify-center border border-gray-200 shadow-sm text-gray-500 hover:text-primary-600 hover:bg-white hover:border-primary-200 transition-all active:scale-95 toolbar-btn"
-                                title="建议回复" :disabled="isGeneratingSuggestions">
-                                <svg v-if="!isGeneratingSuggestions" class="w-4 h-4" fill="none" stroke="currentColor"
-                                    viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
-                                    </path>
-                                </svg>
-                                <svg v-else class="animate-spin w-4 h-4 text-primary-500"
-                                    xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
-                                        stroke-width="4"></circle>
-                                    <path class="opacity-75" fill="currentColor"
-                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
-                                    </path>
-                                </svg>
-                            </button>
-                            <!-- Auto Image Button -->
-                            <button @click="isAutoImageGenEnabled = !isAutoImageGenEnabled"
-                                :class="[isAutoImageGenEnabled ? 'bg-primary-500 text-white shadow-primary-500/30 border-transparent' : 'bg-white/90 text-gray-500 hover:text-gray-700 hover:bg-white border-gray-200']"
-                                class="backdrop-blur-md rounded-full w-8 h-8 flex items-center justify-center border shadow-sm transition-all active:scale-95 toolbar-btn"
-                                title="自动生图开关">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z">
-                                    </path>
-                                </svg>
-                            </button>
-                            <!-- Summarize Button -->
-                            <button @click="showSummaryModal = true"
-                                class="bg-white/90 text-gray-500 hover:text-primary-600 hover:bg-white border hover:border-primary-200 border-gray-200 backdrop-blur-md rounded-full w-8 h-8 flex items-center justify-center shadow-sm transition-all active:scale-95 toolbar-btn"
-                                title="一键总结下文并释放Tokens" :disabled="isSummarizing || isGenerating">
-                                <svg v-if="!isSummarizing" class="w-4 h-4" fill="none" stroke="currentColor"
-                                    viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M4 6h16M4 12h8m-8 6h16"></path>
-                                </svg>
-                                <svg v-else class="animate-spin w-4 h-4 text-primary-500"
-                                    xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
-                                        stroke-width="4"></circle>
-                                    <path class="opacity-75" fill="currentColor"
-                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
-                                    </path>
-                                </svg>
-                            </button>
+                        <div v-if="suggestedReplies.length > 0"
+                            class="absolute bottom-full left-0 right-0 p-2 pointer-events-none z-50">
+                            <div
+                                class="w-full flex flex-col gap-2.5 px-1 items-start pointer-events-auto animate-slide-up">
+                                <button v-for="(reply, idx) in suggestedReplies" :key="idx"
+                                    @click="userInput = reply; suggestedReplies = []"
+                                    class="bg-white/95 hover:bg-white hover:border-primary-400 hover:text-primary-600 hover:shadow-primary-500/10 backdrop-blur-xl border border-gray-200/80 shadow-xl text-xs md:text-sm text-gray-800 px-5 py-3.5 rounded-2xl rounded-bl-sm transition-all cursor-pointer text-left w-auto max-w-[90%] md:max-w-[85%] hover:-translate-y-1 active:scale-[0.98] leading-relaxed font-semibold suggest-btn"
+                                    :title="reply">
+                                    {{ reply }}
+                                </button>
+                            </div>
                         </div>
 
-                        <!-- Right controls: Model switcher -->
-                        <div class="relative">
-                            <!-- Model Selector Popup -->
-                            <transition enter-active-class="transition-all duration-150 ease-out"
-                                enter-from-class="opacity-0 translate-y-2 scale-95"
-                                enter-to-class="opacity-100 translate-y-0 scale-100"
-                                leave-active-class="transition-all duration-100 ease-in"
-                                leave-from-class="opacity-100 translate-y-0 scale-100"
-                                leave-to-class="opacity-0 translate-y-2 scale-95">
-                                <div v-if="showChatModelSelector"
-                                    class="absolute bottom-full right-0 mb-3 z-50 pointer-events-auto min-w-[170px] transform-gpu origin-bottom-right">
-                                    <div
-                                        class="bg-white/95 backdrop-blur-xl border border-gray-200 shadow-xl rounded-2xl p-1.5 flex flex-col gap-1 ring-1 ring-black/5">
-                                        <button @click="modelMode = 'quality'; showChatModelSelector = false"
-                                            :class="['w-full px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 flex items-center justify-between active:scale-95', modelMode === 'quality' ? 'bg-primary-50 text-primary-700 shadow-sm' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900']">
-                                            <div class="flex items-center">
-                                                <svg class="w-4 h-4 mr-2"
-                                                    :class="modelMode === 'quality' ? 'text-primary-500' : 'text-gray-400'"
+                        <div class="relative w-full flex justify-between items-center mb-2 px-1">
+                            <!-- Left controls: Suggest & AutoImage -->
+                            <div class="flex items-center gap-2">
+                                <!-- Suggestion Button -->
+                                <button @click="generateSuggestions"
+                                    class="bg-white/90 backdrop-blur-md rounded-full w-8 h-8 flex items-center justify-center border border-gray-200 shadow-sm text-gray-500 hover:text-primary-600 hover:bg-white hover:border-primary-200 transition-all active:scale-95 toolbar-btn"
+                                    title="建议回复" :disabled="isGeneratingSuggestions">
+                                    <svg v-if="!isGeneratingSuggestions" class="w-4 h-4" fill="none"
+                                        stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
+                                        </path>
+                                    </svg>
+                                    <svg v-else class="animate-spin w-4 h-4 text-primary-500"
+                                        xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                            stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor"
+                                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                        </path>
+                                    </svg>
+                                </button>
+                                <!-- Auto Image Button -->
+                                <button @click="isAutoImageGenEnabled = !isAutoImageGenEnabled"
+                                    :class="[isAutoImageGenEnabled ? 'bg-primary-500 text-white shadow-primary-500/30 border-transparent' : 'bg-white/90 text-gray-500 hover:text-gray-700 hover:bg-white border-gray-200']"
+                                    class="backdrop-blur-md rounded-full w-8 h-8 flex items-center justify-center border shadow-sm transition-all active:scale-95 toolbar-btn"
+                                    title="自动生图开关">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z">
+                                        </path>
+                                    </svg>
+                                </button>
+                                <!-- Summarize Button -->
+                                <button @click="showSummaryModal = true"
+                                    class="bg-white/90 text-gray-500 hover:text-primary-600 hover:bg-white border hover:border-primary-200 border-gray-200 backdrop-blur-md rounded-full w-8 h-8 flex items-center justify-center shadow-sm transition-all active:scale-95 toolbar-btn"
+                                    title="一键总结下文并释放Tokens" :disabled="isSummarizing || isGenerating">
+                                    <svg v-if="!isSummarizing" class="w-4 h-4" fill="none" stroke="currentColor"
+                                        viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M4 6h16M4 12h8m-8 6h16"></path>
+                                    </svg>
+                                    <svg v-else class="animate-spin w-4 h-4 text-primary-500"
+                                        xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                            stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor"
+                                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                        </path>
+                                    </svg>
+                                </button>
+                            </div>
+
+                            <!-- Right controls: Model switcher -->
+                            <div class="relative">
+                                <!-- Model Selector Popup -->
+                                <transition enter-active-class="transition-all duration-150 ease-out"
+                                    enter-from-class="opacity-0 translate-y-2 scale-95"
+                                    enter-to-class="opacity-100 translate-y-0 scale-100"
+                                    leave-active-class="transition-all duration-100 ease-in"
+                                    leave-from-class="opacity-100 translate-y-0 scale-100"
+                                    leave-to-class="opacity-0 translate-y-2 scale-95">
+                                    <div v-if="showChatModelSelector"
+                                        class="absolute bottom-full right-0 mb-3 z-50 pointer-events-auto min-w-[170px] transform-gpu origin-bottom-right">
+                                        <div
+                                            class="bg-white/95 backdrop-blur-xl border border-gray-200 shadow-xl rounded-2xl p-1.5 flex flex-col gap-1 ring-1 ring-black/5">
+                                            <button @click="modelMode = 'quality'; showChatModelSelector = false"
+                                                :class="['w-full px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 flex items-center justify-between active:scale-95', modelMode === 'quality' ? 'bg-primary-50 text-primary-700 shadow-sm' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900']">
+                                                <div class="flex items-center">
+                                                    <svg class="w-4 h-4 mr-2"
+                                                        :class="modelMode === 'quality' ? 'text-primary-500' : 'text-gray-400'"
+                                                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            stroke-width="2"
+                                                            d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z">
+                                                        </path>
+                                                    </svg>
+                                                    质量 (PRO)
+                                                </div>
+                                                <svg v-if="modelMode === 'quality'" class="w-3.5 h-3.5 text-primary-500"
                                                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round"
-                                                        stroke-width="2"
-                                                        d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z">
-                                                    </path>
+                                                        stroke-width="2" d="M5 13l4 4L19 7"></path>
                                                 </svg>
-                                                质量 (PRO)
-                                            </div>
-                                            <svg v-if="modelMode === 'quality'" class="w-3.5 h-3.5 text-primary-500"
-                                                fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                    d="M5 13l4 4L19 7"></path>
-                                            </svg>
-                                        </button>
-                                        <button @click="modelMode = 'balanced'; showChatModelSelector = false"
-                                            :class="['w-full px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 flex items-center justify-between active:scale-95', modelMode === 'balanced' ? 'bg-primary-50 text-primary-700 shadow-sm' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900']">
-                                            <div class="flex items-center">
-                                                <svg class="w-4 h-4 mr-2"
-                                                    :class="modelMode === 'balanced' ? 'text-primary-500' : 'text-gray-400'"
+                                            </button>
+                                            <button @click="modelMode = 'balanced'; showChatModelSelector = false"
+                                                :class="['w-full px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 flex items-center justify-between active:scale-95', modelMode === 'balanced' ? 'bg-primary-50 text-primary-700 shadow-sm' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900']">
+                                                <div class="flex items-center">
+                                                    <svg class="w-4 h-4 mr-2"
+                                                        :class="modelMode === 'balanced' ? 'text-primary-500' : 'text-gray-400'"
+                                                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            stroke-width="2"
+                                                            d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3">
+                                                        </path>
+                                                    </svg>
+                                                    均衡 (FLASH)
+                                                </div>
+                                                <svg v-if="modelMode === 'balanced'"
+                                                    class="w-3.5 h-3.5 text-primary-500" fill="none"
+                                                    stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                                </svg>
+                                            </button>
+                                            <button @click="modelMode = 'fast'; showChatModelSelector = false"
+                                                :class="['w-full px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 flex items-center justify-between active:scale-95', modelMode === 'fast' ? 'bg-primary-50 text-primary-700 shadow-sm' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900']">
+                                                <div class="flex items-center">
+                                                    <svg class="w-4 h-4 mr-2"
+                                                        :class="modelMode === 'fast' ? 'text-primary-500' : 'text-gray-400'"
+                                                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                                                    </svg>
+                                                    快速 (LITE)
+                                                </div>
+                                                <svg v-if="modelMode === 'fast'" class="w-3.5 h-3.5 text-primary-500"
                                                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round"
-                                                        stroke-width="2"
-                                                        d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3">
-                                                    </path>
+                                                        stroke-width="2" d="M5 13l4 4L19 7"></path>
                                                 </svg>
-                                                均衡 (FLASH)
-                                            </div>
-                                            <svg v-if="modelMode === 'balanced'" class="w-3.5 h-3.5 text-primary-500"
-                                                fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                    d="M5 13l4 4L19 7"></path>
-                                            </svg>
-                                        </button>
-                                        <button @click="modelMode = 'fast'; showChatModelSelector = false"
-                                            :class="['w-full px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 flex items-center justify-between active:scale-95', modelMode === 'fast' ? 'bg-primary-50 text-primary-700 shadow-sm' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900']">
-                                            <div class="flex items-center">
-                                                <svg class="w-4 h-4 mr-2"
-                                                    :class="modelMode === 'fast' ? 'text-primary-500' : 'text-gray-400'"
-                                                    fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                                        stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                                                </svg>
-                                                快速 (LITE)
-                                            </div>
-                                            <svg v-if="modelMode === 'fast'" class="w-3.5 h-3.5 text-primary-500"
-                                                fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                    d="M5 13l4 4L19 7"></path>
-                                            </svg>
-                                        </button>
+                                            </button>
+                                        </div>
                                     </div>
-                                </div>
-                            </transition>
+                                </transition>
 
-                            <!-- Current Model Toggle Button -->
-                            <button @click.stop="showChatModelSelector = !showChatModelSelector"
-                                class="px-3.5 py-1.5 rounded-full text-[10px] md:text-xs font-bold transition-all duration-300 flex items-center bg-white/40 hover:bg-white/90 backdrop-blur-md border border-primary-200/50 shadow-sm hover:shadow-md hover:border-primary-400 active:scale-95 text-primary-600 ring-4 ring-transparent hover:ring-primary-50"
-                                title="切换模型">
-                                <svg v-if="modelMode === 'quality'" class="w-3.5 h-3.5 mr-1" fill="none"
-                                    stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z">
-                                    </path>
-                                </svg>
-                                <svg v-else-if="modelMode === 'balanced'" class="w-3.5 h-3.5 mr-1" fill="none"
-                                    stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3">
-                                    </path>
-                                </svg>
-                                <svg v-else class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor"
-                                    viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                                </svg>
-                                {{ modelMode === 'quality' ? 'PRO' : modelMode === 'balanced' ? 'FLASH' : 'LITE' }}
-                            </button>
+                                <!-- Current Model Toggle Button -->
+                                <button @click.stop="showChatModelSelector = !showChatModelSelector"
+                                    class="px-3.5 py-1.5 rounded-full text-[10px] md:text-xs font-bold transition-all duration-300 flex items-center bg-white/40 hover:bg-white/90 backdrop-blur-md border border-primary-200/50 shadow-sm hover:shadow-md hover:border-primary-400 active:scale-95 text-primary-600 ring-4 ring-transparent hover:ring-primary-50"
+                                    title="切换模型">
+                                    <svg v-if="modelMode === 'quality'" class="w-3.5 h-3.5 mr-1" fill="none"
+                                        stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z">
+                                        </path>
+                                    </svg>
+                                    <svg v-else-if="modelMode === 'balanced'" class="w-3.5 h-3.5 mr-1" fill="none"
+                                        stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3">
+                                        </path>
+                                    </svg>
+                                    <svg v-else class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor"
+                                        viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                                    </svg>
+                                    {{ modelMode === 'quality' ? 'PRO' : modelMode === 'balanced' ? 'FLASH' : 'LITE' }}
+                                </button>
+                            </div>
                         </div>
-                    </div>
-                    <div class="relative w-full flex items-end gap-3 px-1">
-                        <textarea v-model="userInput" @input="autoResizeInput" @keydown.enter.prevent="sendMessage"
-                            :placeholder="'输入消息...'"
-                            class="flex-1 bg-gray-100/50 text-gray-800 rounded-2xl px-5 py-3.5 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400 resize-none border border-transparent shadow-inner transition-all focus:bg-white chat-input-scrollbar"
-                            rows="1" style="min-height: 52px; max-height: 180px;" ref="inputBox"></textarea>
+                        <div class="relative w-full flex items-end gap-3 px-1">
+                            <textarea v-model="userInput" @input="autoResizeInput" @keydown.enter.prevent="sendMessage"
+                                :placeholder="'输入消息...'"
+                                class="flex-1 bg-gray-100/50 text-gray-800 rounded-2xl px-5 py-3.5 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400 resize-none border border-transparent shadow-inner transition-all focus:bg-white chat-input-scrollbar"
+                                rows="1" style="min-height: 52px; max-height: 180px;" ref="inputBox"></textarea>
 
-                        <!-- Send/Stop Button -->
-                        <div class="flex-shrink-0 h-[50px] flex items-center gap-1">
-                            <!-- Removed skip turn button -->
-                            <button v-if="!isGenerating" @click="sendMessage" :disabled="!userInput.trim()"
-                                class="p-3 bg-primary-600 text-white rounded-2xl md:hover:bg-primary-700 md:hover:shadow-lg md:hover:-translate-y-0.5 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0 transition-all shadow-md flex items-center justify-center w-[52px] h-[52px]"
-                                title="发送">
-                                <svg class="w-6 h-6 transform rotate-90" fill="none" stroke="currentColor"
-                                    viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
-                                </svg>
-                            </button>
-                            <button v-else @click="stopGeneration"
-                                class="p-3 bg-red-500 text-white rounded-2xl md:hover:bg-red-600 md:hover:shadow-lg md:hover:-translate-y-0.5 active:scale-95 transition-all shadow-md flex items-center justify-center w-[52px] h-[52px]"
-                                title="中止生成">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M6 18L18 6M6 6l12 12"></path>
-                                </svg>
-                            </button>
+                            <!-- Send/Stop Button -->
+                            <div class="flex-shrink-0 h-[50px] flex items-center gap-1">
+                                <!-- Removed skip turn button -->
+                                <button v-if="!isGenerating" @click="sendMessage" :disabled="!userInput.trim()"
+                                    class="p-3 bg-primary-600 text-white rounded-2xl md:hover:bg-primary-700 md:hover:shadow-lg md:hover:-translate-y-0.5 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0 transition-all shadow-md flex items-center justify-center w-[52px] h-[52px]"
+                                    title="发送">
+                                    <svg class="w-6 h-6 transform rotate-90" fill="none" stroke="currentColor"
+                                        viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                                    </svg>
+                                </button>
+                                <button v-else @click="stopGeneration"
+                                    class="p-3 bg-red-500 text-white rounded-2xl md:hover:bg-red-600 md:hover:shadow-lg md:hover:-translate-y-0.5 active:scale-95 transition-all shadow-md flex items-center justify-center w-[52px] h-[52px]"
+                                    title="中止生成">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M6 18L18 6M6 6l12 12"></path>
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
-                    </div>
                     </div>
                 </div>
                 <!-- Message Navigation & Quota -->
@@ -1981,7 +2011,7 @@
                                             class="bg-gray-50 p-4 rounded-xl border border-gray-100 hover:bg-white hover:border-gray-200 hover:shadow-sm transition-all duration-200">
                                             <div class="flex justify-between items-center mb-3">
                                                 <label
-                                                    class="text-xs font-bold text-gray-500 uppercase tracking-wider">局部渲染层数上限</label>
+                                                    class="text-xs font-bold text-gray-500 uppercase tracking-wider">渲染层数上限</label>
                                                 <span
                                                     class="text-xs font-mono text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-100 whitespace-nowrap">{{
                                                     settings.renderLayerLimit > 100 ? '无限制' : settings.renderLayerLimit
@@ -3060,10 +3090,9 @@
                             <h4 class="ml-2 text-sm font-bold text-yellow-800">注意事项</h4>
                         </div>
                         <ul class="list-disc list-outside ml-9 space-y-1.5 text-sm text-yellow-700">
-                            <li>开启后，将<strong>自动关闭流式输出</strong>（不影响生成速度）。</li>
                             <li>此功能有概率触发模型 <strong>“空回”</strong> 现象，如遇到请尝试重新生成或更换模型。</li>
                             <li>您可以在 “世界书 -> 自动生图” 手动管理此功能。</li>
-                            <li>前往 “设置” 可以切换生图风格。</li>
+                            <li>前往 “设置” 可以切换生图风格与比例。</li>
                         </ul>
                     </div>
                 </div>
