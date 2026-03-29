@@ -1069,60 +1069,7 @@
                         </div>
                     </div>
                 </div>
-                <!-- Message Navigation & Quota -->
-                <div class="fixed z-10 flex flex-col gap-2 transition-all duration-300 left-2 md:left-auto md:right-8 items-start md:items-end"
-                    :class="[suggestedReplies && suggestedReplies.length > 0 ? 'bottom-[23rem] md:bottom-44' : 'bottom-64 md:bottom-44']">
-                    <!-- Quota Button -->
-                    <div v-if="isAutoImageGenEnabled" class="flex flex-col items-start md:items-end gap-2 mb-2">
-                        <transition name="fade">
-                            <div v-if="showQuotaPanel"
-                                class="bg-white/90 backdrop-blur-md border border-gray-200 shadow-lg rounded-lg p-2 text-xs font-mono mb-1 origin-bottom-left md:origin-bottom-right">
-                                <div v-if="quotaLoading" class="text-gray-500">查询中...</div>
-                                <div v-else-if="quotaError" class="text-red-500">查询失败,请检查VPN连接</div>
-                                <div v-else :class="quotaAvailable ? 'text-green-600' : 'text-red-500'">
-                                    <div class="font-bold mb-0.5 text-left md:text-right">生图额度</div>
-                                    <div class="text-left md:text-right">{{ (quotaValue / 10).toFixed(1) }}%</div>
-                                </div>
-                            </div>
-                        </transition>
-                        <button @click="showQuotaPanel = !showQuotaPanel; if(showQuotaPanel) fetchQuota()"
-                            class="p-1.5 md:p-2 bg-white/70 md:hover:bg-white backdrop-blur-[2px] shadow-sm rounded-full transition-all border border-white/20 md:hover:shadow-sm md:hover:scale-110 active:scale-95 group"
-                            :class="{'text-green-500 border-green-200': quotaAvailable && !quotaLoading && !quotaError, 'text-red-500 border-red-200': (!quotaAvailable || quotaError) && !quotaLoading, 'text-gray-400': quotaLoading}"
-                            title="生图额度">
-                            <svg v-if="quotaLoading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
-                                    stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor"
-                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
-                                </path>
-                            </svg>
-                            <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z">
-                                </path>
-                            </svg>
-                        </button>
-                    </div>
 
-                    <button @click="scrollToPreviousMessage"
-                        class="p-1.5 md:p-2 bg-white/70 md:hover:bg-white backdrop-blur-[2px] shadow-sm rounded-full text-gray-500 md:hover:text-primary-600 active:text-primary-600 transition-all border border-white/20 md:hover:shadow-sm md:hover:scale-110 active:scale-95 group"
-                        title="上一条信息">
-                        <svg class="w-4 h-4 transform md:group-hover:-translate-y-0.5 transition-transform" fill="none"
-                            stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7">
-                            </path>
-                        </svg>
-                    </button>
-                    <button @click="scrollToNextMessage"
-                        class="p-1.5 md:p-2 bg-white/70 md:hover:bg-white backdrop-blur-[2px] shadow-sm rounded-full text-gray-500 md:hover:text-primary-600 active:text-primary-600 transition-all border border-white/20 md:hover:shadow-sm md:hover:scale-110 active:scale-95 group"
-                        title="下一条信息">
-                        <svg class="w-4 h-4 transform md:group-hover:translate-y-0.5 transition-transform" fill="none"
-                            stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7">
-                            </path>
-                        </svg>
-                    </button>
-                </div>
             </div>
 
             <!-- Characters Management -->
@@ -1757,7 +1704,9 @@
                                                     imageGenLatency }}ms</span>
                                             </div>
                                             <div class="text-[10px] text-gray-500 truncate">
-                                                <span v-if="imageGenStatus === 'connected'">正常</span>
+                                                <span v-if="imageGenStatus === 'connected'">正常<span
+                                                        v-if="quotaLoading">（获取中...）</span><span v-else>（{{ quotaError ?
+                                                        '查询失败' : (quotaValue / 10).toFixed(1) + '%' }}）</span></span>
                                                 <span v-else-if="imageGenStatus === 'checking'">检测中...</span>
                                                 <span v-else-if="imageGenStatus === 'error'">连接失败</span>
                                                 <span v-else>未检测</span>
