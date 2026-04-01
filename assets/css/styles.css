@@ -297,14 +297,11 @@ html {
             }
         }
         
-        /* Glassmorphism Stabilization */
         .glass-stabilize {
             will-change: backdrop-filter, transform, opacity;
-            transform: translateZ(0);
-            backface-visibility: hidden;
-            perspective: 1000;
             -webkit-font-smoothing: subpixel-antialiased;
         }
+
 
         /* Elegant Message Entrance Animation */
         .animate-message-in {

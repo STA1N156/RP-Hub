@@ -520,13 +520,13 @@
 
                     <div v-else v-for="(msg, index) in chatHistory" :key="index" ref="messageElements"
                         :data-role="msg.role"
-                        v-show="!(msg.role === 'assistant' && index === chatHistory.length - 1 && isThinking && !msg.content)"
-                        :class="['flex w-full', msg.shouldAnimate ? 'animate-message-in' : '', msg.isSelf ? 'justify-end' : 'justify-start']"
+                        v-show="!(msg.role === 'assistant' && index === chatHistory.length - 1 && isThinking && !(parseCot(msg.content).cot || parseCot(msg.content).main))"
+                        :class="['flex w-full', msg.isSelf ? 'justify-end' : 'justify-start']"
                         :style="{ animationDelay: msg.isSelf ? '0ms' : '0ms' }">
                         <div
                             :class="['flex max-w-[99%] md:max-w-[75%] lg:max-w-[70%]', (parseCot(msg.content).cot || msg.isSummary) ? 'w-full' : '', msg.isSelf ? 'flex-row-reverse' : 'flex-row']">
                             <!-- Avatar -->
-                            <div class="flex-shrink-0 select-none">
+                            <div :class="['flex-shrink-0 select-none', msg.shouldAnimate ? 'animate-message-in' : '']">
                                 <div v-if="msg.role === 'user'"
                                     :class="['w-9 h-9 rounded-full overflow-hidden shadow-sm transition-transform', msg.isSelf ? 'ml-1.5' : 'mr-1.5']">
                                     <img v-if="msg?.avatar || (msg?.isSelf && user?.avatar)"
@@ -548,7 +548,7 @@
                                 :class="['flex flex-col min-w-0', (parseCot(msg.content).cot || msg.isSummary) ? 'w-full' : '', msg.isSelf ? 'items-end' : 'items-start']">
                                 <!-- Name (Outside Bubble) -->
                                 <div
-                                    :class="['text-[10px] font-bold text-gray-600 mb-1 select-none px-1.5 py-0.5 rounded-md bg-white/50 backdrop-blur-sm border border-white/20 w-fit shadow-sm truncate max-w-[150px] md:max-w-[250px] msg-name-tag', msg.isSelf ? 'ml-auto mr-1' : 'mr-auto ml-1']">
+                                    :class="['text-[10px] font-bold text-gray-600 mb-1 select-none px-1.5 py-0.5 rounded-md bg-white/50 backdrop-blur-sm border border-white/20 w-fit shadow-sm truncate max-w-[150px] md:max-w-[250px] msg-name-tag', msg.isSelf ? 'ml-auto mr-1' : 'mr-auto ml-1', msg.shouldAnimate ? 'animate-message-in' : '']">
                                     {{ msg.name || (msg.role === 'user' ? user.name : 'Unknown') }}
                                 </div>
                                 <!-- Message Bubble -->
@@ -556,11 +556,13 @@
                                     :class="{'w-full': parseCot(msg.content).cot || msg.isSummary}">
                                     <div
                                         :class="['p-0 rounded-2xl shadow-sm text-sm md:text-base leading-relaxed overflow-hidden',
+                                        msg.shouldAnimate ? 'animate-message-in' : '',
                                         (parseCot(msg.content).cot || msg.isSummary) ? 'w-full' : '',
                                         msg.role === 'user' ? (msg.isSelf ? 'bg-blue-50/85 text-gray-900 rounded-tr-none shadow-[0_4px_12px_rgba(59,130,246,0.1)] border border-primary-300/50' : 'bg-white/70 text-gray-800 rounded-tl-none border border-white/40 shadow-card') :
                                         msg.role === 'system' ? 'bg-red-50/70 text-red-800 border border-red-200/40' :
                                         'bg-white/70 text-gray-800 border border-white/40 shadow-card',
                                         index >= chatHistory.length - (settings.renderLayerLimit > 100 ? 99999 : settings.renderLayerLimit) ? 'backdrop-blur-md glass-stabilize msg-bubble-glass' : 'bg-opacity-100']">
+
 
 
                                         <div v-if="msg.isTriggered && !msg.showRaw" @click="msg.showRaw = true"
@@ -709,11 +711,13 @@
                                                 </div>
                                             </div>
                                             <!-- Main Part -->
-                                            <div v-if="index >= chatHistory.length - (settings.renderLayerLimit > 100 ? 99999 : settings.renderLayerLimit)"
-                                                class="markdown-body"
-                                                v-html="renderMarkdown(parseCot(msg.content).main, msg.role)"></div>
-                                            <div v-else class="markdown-body px-4 py-3 whitespace-pre-wrap"
-                                                v-text="parseCot(msg.content).main"></div>
+                                            <template v-if="parseCot(msg.content).main">
+                                                <div v-if="index >= chatHistory.length - (settings.renderLayerLimit > 100 ? 99999 : settings.renderLayerLimit)"
+                                                    class="markdown-body"
+                                                    v-html="renderMarkdown(parseCot(msg.content).main, msg.role)"></div>
+                                                <div v-else class="markdown-body px-4 py-3 whitespace-pre-wrap"
+                                                    v-text="parseCot(msg.content).main"></div>
+                                            </template>
 
                                             <!-- Sys Instruction Part -->
                                             <div v-if="parseCot(msg.content).sys"
@@ -779,19 +783,19 @@
 
                     <!-- Typing Indicator -->
                     <div v-if="(isGenerating || isRemoteGenerating) && (!isReceiving || isThinking)"
-                        class="flex w-full justify-start animate-message-in" style="animation-delay: 200ms;">
+                        class="flex w-full justify-start">
                         <div class="flex max-w-[99%] md:max-w-[75%] lg:max-w-[70%] flex-row">
-                            <div class="flex-shrink-0">
+                            <div class="flex-shrink-0 animate-message-in" style="animation-delay: 200ms;">
                                 <img :src="currentCharacter?.avatar"
                                     class="w-9 h-9 rounded-full object-cover mr-1.5 border border-gray-200 shadow-sm">
                             </div>
                             <div class="flex flex-col min-w-0 items-start">
                                 <div
-                                    class="text-[10px] font-bold text-gray-600 mb-1 select-none px-1.5 py-0.5 rounded-md bg-white/50 backdrop-blur-sm border border-white/20 w-fit shadow-sm mr-auto ml-1 truncate max-w-[150px] md:max-w-[250px] msg-name-tag">
+                                    class="text-[10px] font-bold text-gray-600 mb-1 select-none px-1.5 py-0.5 rounded-md bg-white/50 backdrop-blur-sm border border-white/20 w-fit shadow-sm mr-auto ml-1 truncate max-w-[150px] md:max-w-[250px] msg-name-tag animate-message-in" style="animation-delay: 200ms;">
                                     {{ currentCharacter.name }}
                                 </div>
                                 <div
-                                    class="min-w-[150px] min-h-[4.5rem] px-6 py-4 rounded-2xl rounded-tl-none bg-white/70 backdrop-blur-md glass-stabilize border border-white/40 shadow-card flex flex-col items-center justify-center gap-2 transition-all duration-500 typing-bubble">
+                                    class="min-w-[150px] min-h-[4.5rem] px-6 py-4 rounded-2xl rounded-tl-none bg-white/70 backdrop-blur-md glass-stabilize border border-white/40 shadow-card flex flex-col items-center justify-center gap-2 transition-all duration-500 typing-bubble animate-message-in" style="animation-delay: 200ms;">
                                     <div class="typing-indicator scale-125" :class="{ 'thinking-mode': isThinking }">
                                         <span></span><span></span><span></span>
                                     </div>

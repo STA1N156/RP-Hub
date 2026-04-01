@@ -48,5 +48,5 @@ const parseCot = (text) => {
         mainContent = mainContent.slice(0, sysMatch.index).trim();
     }
     
-    return { cot: cotContent.trim(), main: mainContent.trimStart(), sys: sys, isFinished };
+    return { cot: cotContent.trim(), main: mainContent.trim(), sys: sys, isFinished };
 };
