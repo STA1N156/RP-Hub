@@ -33,7 +33,15 @@ const parseCot = (text) => {
     
     // 提取 CoT 内容并从正文中移除
     mainContent = mainContent.replace(cotPattern, (match, tag, content) => {
-        cotContent += content;
+        // 对 CoT 的内容中的 < 符号进行转义，防止 DOMPurify 吞掉类似 <动作> 或 <thinking> 的标签
+        // 通过跳过 ``` 和 ` 块，保证代码块的正常显示和复制功能
+        const parts = content.split(/(```[\s\S]*?```|`[^`]+`)/);
+        let escapedContent = parts.map((part, i) => {
+            if (i % 2 === 1) return part; // 保留代码块原样
+            return part.replace(/</g, "&lt;"); // 仅转义左括号，不影响 Markdown 的 > 引用块语法
+        }).join('');
+
+        cotContent += escapedContent;
         // 如果匹配项包含闭合标签，则认为思维链已结束
         if (match.includes('</') || (match.match(new RegExp('<' + tag + '>', 'gi')) || []).length > 1) {
             isFinished = true;
