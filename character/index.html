@@ -62,6 +62,10 @@
             height: -webkit-fill-available; /* iOS 关键修复 */
         }
 
+        html.dark body {
+            background-color: #111827;
+        }
+
         ::-webkit-scrollbar {
             display: none;
         }
@@ -222,6 +226,7 @@
     </style>
     <script>
         tailwind.config = {
+            darkMode: 'class',
             future: {
                 hoverOnlyWhenSupported: true,
             },
@@ -317,8 +322,18 @@
 
                 </div>
             </div>
-            <!-- Settings button restored -->
-            <div class="flex-none">
+            <!-- Dark Mode Toggle & Settings -->
+            <div class="flex-none flex items-center gap-1">
+                <button class="btn btn-ghost btn-circle btn-md h-11 w-11"
+                    @click="toggleDarkMode"
+                    :title="isDarkMode ? '切换到浅色模式' : '切换到暗色模式'">
+                    <svg v-if="isDarkMode" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                    </svg>
+                    <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+                    </svg>
+                </button>
                 <button class="btn btn-ghost btn-circle btn-md h-11 w-11" @click="showSettings = true">
                     <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -647,7 +662,7 @@
                 <div class="flex-1 overflow-hidden bg-base-200/50 relative flex flex-col">
                     <div class="absolute inset-0 pattern-grid opacity-5 pointer-events-none"></div>
 
-                    <div class="flex-1 w-full h-full bg-white relative flex flex-col md:flex-row">
+                    <div class="flex-1 w-full h-full bg-white dark:bg-gray-800 relative flex flex-col md:flex-row">
                         <!-- Dual View for Diff -->
                         <template v-if="originalPreviewHTML">
                             <div class="flex-1 flex-col border-b md:border-b-0 md:border-r border-base-300 h-full relative"
@@ -696,7 +711,7 @@
                         <div role="tablist"
                             class="tabs bg-base-200/50 p-1 gap-1 w-full md:w-auto overflow-x-auto flex-nowrap scrollbar-hide relative rounded-xl">
                             <!-- Sliding Glider -->
-                            <div class="absolute top-1 bottom-1 bg-white shadow-sm rounded-lg transition-all duration-300 ease-out z-0"
+                            <div class="absolute top-1 bottom-1 bg-white dark:bg-gray-800 shadow-sm rounded-lg transition-all duration-300 ease-out z-0"
                                 :style="gliderStyle">
                             </div>
 
@@ -1473,6 +1488,33 @@
 
         createApp({
             setup() {
+                // --- Dark Mode ---
+                const isDarkMode = ref(false);
+                const initTheme = () => {
+                    const saved = localStorage.getItem('darkMode');
+                    if (saved !== null) {
+                        isDarkMode.value = saved === 'true';
+                    } else {
+                        isDarkMode.value = false; // 默认亮色（与 DaisyUI cupcake 主题一致）
+                    }
+                    applyTheme();
+                };
+                const applyTheme = () => {
+                    if (isDarkMode.value) {
+                        document.documentElement.classList.add('dark');
+                        document.documentElement.setAttribute('data-theme', 'dark');
+                    } else {
+                        document.documentElement.classList.remove('dark');
+                        document.documentElement.setAttribute('data-theme', 'cupcake');
+                    }
+                };
+                const toggleDarkMode = () => {
+                    isDarkMode.value = !isDarkMode.value;
+                    applyTheme();
+                    localStorage.setItem('darkMode', isDarkMode.value);
+                };
+                initTheme();
+
                 // Utility: Debounce
                 const debounce = (fn, delay) => {
                     let timeout;
@@ -3552,6 +3594,8 @@ JSON 字段（世界书/正则脚本）必须输出为合法的 JSON 数组，**
                 };
 
                 return {
+                    isDarkMode,
+                    toggleDarkMode,
                     showSettings,
                     showPreview,
                     previewHTML,

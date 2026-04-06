@@ -14,7 +14,9 @@ marked.use({
 
 createApp({
     setup() {
-        // Default Avatar (Simple Gray Background)
+        const isDarkMode = ref(true);
+        // Default Avatar
+        //  (Simple Gray Background)
         const defaultAvatar = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2U1ZTdlYiIvPjwvc3ZnPg==';
 
         // Image Compression Utility
@@ -75,6 +77,33 @@ createApp({
         const showAutoImageGenModal = ref(false);
         const tempUserSetup = reactive({ name: '', description: '', person: 'second' });
         const characterDisplayLimit = ref(20);
+
+        // 添加暗色模式状态（默认为 true，即暗色）
+        // const isDarkMode = ref(true);
+        // 主题切换方法
+        const toggleDarkMode = () => {
+            isDarkMode.value = !isDarkMode.value;
+            if (isDarkMode.value) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+            localStorage.setItem('darkMode', isDarkMode.value);
+        };
+        const initTheme = () => {
+            const saved = localStorage.getItem('darkMode');
+            if (saved !== null) {
+                // ✅ 正确读取布尔值
+                isDarkMode.value = saved === 'true';
+            } else {
+                isDarkMode.value = true; // 默认暗色
+            }
+            if (isDarkMode.value) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        };
 
         // Quota State
         const showQuotaPanel = ref(false);
@@ -4207,6 +4236,8 @@ ${textContent}`;
 
         // Lifecycle
         onMounted(async () => {
+             // 初始化主题（暗色模式）
+            initTheme();
             fetchQuota(); // Fetch quota on load
             checkUpdate(); // Check for updates
 
@@ -4773,6 +4804,9 @@ ${textContent}`;
         };
 
         return {
+             // 暗色模式相关（确保这两个被添加）
+            isDarkMode,
+            toggleDarkMode,
             processMainContent,
             currentView, showMobileMenu, showDescriptionPanel, showModelSelector, modelSelectionTarget, showChatModelSelector, showCharacterEditor, showAddCharacterMenu, showPresetEditor,
             showExportModal, showSummaryModal, isSummarizing, summarizeChatHistory, revertSummary, resummarize, sysInstruction, showInstructionPanel, exportType, exportItems, selectedExportIndices, // Export Modal
