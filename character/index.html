@@ -23,6 +23,7 @@
             background-color: #f3f4f6;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
+            height: -webkit-fill-available; /* iOS 关键修复 */
         }
 
         ::-webkit-scrollbar {
@@ -675,7 +676,7 @@
                         </div>
                     </div>
                     <!-- Scrollable Content -->
-                    <div class="flex-1 overflow-y-auto p-4 md:p-8 bg-base-200/30">
+                    <div class="flex-1 overflow-y-auto p-4 md:p-8 bg-base-200/30" style="-webkit-overflow-scrolling: touch;">
                         <div class="max-w-7xl mx-auto">
 
                             <!-- Basic Info -->
