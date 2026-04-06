@@ -96,7 +96,7 @@ createApp({
                 // ✅ 正确读取布尔值
                 isDarkMode.value = saved === 'true';
             } else {
-                isDarkMode.value = true; // 默认暗色
+                isDarkMode.value = false; // 切换默认主题颜色 目前默认浅色
             }
             if (isDarkMode.value) {
                 document.documentElement.classList.add('dark');
