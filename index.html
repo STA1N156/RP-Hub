@@ -183,7 +183,16 @@
                     </svg>
                     <span v-show="!isSidebarCollapsed" class="whitespace-nowrap overflow-hidden">角色卡生成</span>
                 </button>
-
+                <button @click="currentView = 'square'; showMobileMenu = false"
+                    :class="['w-full flex items-center rounded-lg transition-all duration-200 font-medium', currentView === 'square' ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900', isSidebarCollapsed ? 'justify-center px-0 py-3' : 'px-3 py-2']">
+                    <svg class="w-5 h-5" :class="isSidebarCollapsed ? 'mr-0' : 'mr-3'" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9">
+                        </path>
+                    </svg>
+                    <span v-show="!isSidebarCollapsed" class="whitespace-nowrap overflow-hidden">万相广场</span>
+                </button>
                 <button @click="currentView = 'presets'; showMobileMenu = false"
                     :class="['w-full flex items-center rounded-lg transition-all duration-200 font-medium', currentView === 'presets' ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900', isSidebarCollapsed ? 'justify-center px-0 py-3' : 'px-3 py-2']">
                     <svg class="w-5 h-5" :class="isSidebarCollapsed ? 'mr-0' : 'mr-3'" fill="none" stroke="currentColor"
@@ -1508,6 +1517,41 @@
                         </div>
                     </div>
                     <iframe :src="generatorUrl" @load="onGeneratorLoad" class="absolute inset-0 w-full h-full border-0"
+                        allow="clipboard-write"
+                        sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads"></iframe>
+                </div>
+            </div>
+
+                        <!-- Square View -->
+            <div v-if="currentView === 'square'" class="h-full overflow-hidden flex flex-col bg-gray-50 relative">
+                <!-- Mobile Floating Menu Button -->
+                <button @click="toggleMobileMenu"
+                    class="md:hidden absolute left-0 top-1/2 transform -translate-y-1/2 z-20 pl-2 pr-1.5 py-3 bg-white/90 backdrop-blur-md text-gray-600 text-xs font-medium rounded-r-xl shadow-lg border border-l-0 border-gray-200 active:scale-95 transition-all flex flex-col items-center gap-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                    </svg>
+                    <span class="leading-none">返</span>
+                    <span class="leading-none">回</span>
+                </button>
+
+                <div class="flex-1 w-full relative bg-white h-full">
+                    <!-- Loading Overlay -->
+                    <div v-if="isSquareLoading"
+                        class="absolute inset-0 z-10 flex items-center justify-center bg-gray-50">
+                        <div class="flex flex-col items-center">
+                            <svg class="animate-spin h-10 w-10 text-primary-600 mb-4" xmlns="http://www.w3.org/2000/svg"
+                                fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                    stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor"
+                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                </path>
+                            </svg>
+                            <div class="text-gray-500 font-medium">加载万相广场中...</div>
+                        </div>
+                    </div>
+                    <iframe :src="squareUrl" @load="onSquareLoad" class="absolute inset-0 w-full h-full border-0"
                         allow="clipboard-write"
                         sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads"></iframe>
                 </div>
