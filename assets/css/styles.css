@@ -846,6 +846,16 @@ html.dark .bg-white {
     background-color: #1f2937 !important;
 }
 
+/* Dark mode: override bg-white/70 (world info panel glass background) */
+html.dark .bg-white\/70 {
+    background-color: rgba(31, 41, 55, 0.7) !important;
+}
+
+/* Dark mode: override bg-primary-50 (world info expanded header) */
+html.dark .bg-primary-50 {
+    background-color: rgba(30, 27, 75, 0.8) !important;
+}
+
 .no-blur .bg-indigo-950\/60 {
     background-color: rgba(30, 27, 75, 0.9) !important;
 }
