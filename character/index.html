@@ -11,6 +11,42 @@
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/localforage@1.10.0/dist/localforage.min.js"></script>
     <style>
+            /* iOS 滚动兼容终极方案 */
+        html, body {
+            height: 100%;
+            height: -webkit-fill-available;
+            overflow: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* 强制所有潜在滚动容器启用硬件加速 */
+        .drawer-content,
+        .drawer-content > div,
+        .flex-1.overflow-y-auto,
+        .overflow-y-auto,
+        .overflow-auto {
+            -webkit-overflow-scrolling: touch !important;
+            transform: translateZ(0); /* 强制GPU层，防止iOS渲染bug */
+        }
+
+        /* 针对主内容区特殊处理（你的实际滚动区域） */
+        .flex-1.overflow-y-auto {
+            overscroll-behavior-y: contain; /* 防止滚动穿透 */
+            touch-action: pan-y; /* 只允许垂直滚动，避免手势冲突 */
+        }
+
+        /* iOS底部安全区域适配 */
+        @supports (-webkit-touch-callout: none) {
+            .drawer-content {
+                height: -webkit-fill-available !important;
+                max-height: -webkit-fill-available !important;
+            }
+            
+            /* 底部输入栏适配，防止被Home Indicator挡住 */
+            .pb-\[max\(1rem\,env\(safe-area-inset-bottom\)\)\] {
+                padding-bottom: max(1rem, env(safe-area-inset-bottom), 20px) !important;
+            }
+        }
         html {
             -webkit-text-size-adjust: 100% !important;
             -moz-text-size-adjust: 100% !important;
