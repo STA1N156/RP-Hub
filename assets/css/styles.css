@@ -47,18 +47,9 @@ html {
         }
 
         .chat-input-scrollbar::-webkit-scrollbar {
-            width: 4px;
-        }
-        .chat-input-scrollbar::-webkit-scrollbar-track {
-            background: transparent;
-        }
-        .chat-input-scrollbar::-webkit-scrollbar-thumb {
-            background: transparent;
-            border-radius: 10px;
-        }
-        .chat-input-scrollbar:hover::-webkit-scrollbar-thumb,
-        .chat-input-scrollbar:focus::-webkit-scrollbar-thumb {
-            background: var(--border);
+            width: 0 !important;
+            height: 0 !important;
+            display: none !important;
         }
         
         body {
