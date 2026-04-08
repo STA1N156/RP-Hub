@@ -4929,24 +4929,15 @@ ${textContent}`;
             switchProfile(newProfile.uuid);
         };
 
-        const cloneProfile = () => {
-            const currentProfile = userProfiles.value.find(p => p.uuid === activeProfileId.value);
-            if (currentProfile) {
-                const newProfile = JSON.parse(JSON.stringify(currentProfile));
-                newProfile.uuid = generateUUID();
-                newProfile.name = newProfile.name + ' (副本)';
-                userProfiles.value.push(newProfile);
-                switchProfile(newProfile.uuid);
-            }
-        };
+
 
         const deleteProfile = (id) => {
             if (userProfiles.value.length <= 1) {
-                showToast('无法删除唯一的人设配置', 'error');
+                showToast('无法删除唯一的人设', 'error');
                 return;
             }
 
-            confirmMessage.value = '确定要删除此人设配置吗？此操作不可逆。';
+            confirmMessage.value = '确定要删除此人设吗？此操作不可逆。';
             confirmCallback.value = () => {
                 const index = userProfiles.value.findIndex(p => p.uuid === id);
                 if (index !== -1) {
@@ -4964,7 +4955,7 @@ ${textContent}`;
         };
 
         return {
-            switchProfile, createNewProfile, cloneProfile, deleteProfile, userProfiles, activeProfileId, showProfileDropdown,
+            switchProfile, createNewProfile, deleteProfile, userProfiles, activeProfileId, showProfileDropdown,
             processMainContent,
             currentView, showMobileMenu, showDescriptionPanel, showModelSelector, modelSelectionTarget, showChatModelSelector, showCharacterEditor, showAddCharacterMenu, showPresetEditor,
             showExportModal, showSummaryModal, isSummarizing, summarizeChatHistory, revertSummary, resummarize, sysInstruction, showInstructionPanel, exportType, exportItems, selectedExportIndices, // Export Modal
