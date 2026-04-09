@@ -317,14 +317,7 @@ createApp({
             temperature: 1.0,
             autoFetchModels: true,
             stream: true,
-            apiMode: 'public', // 'public' or 'custom'
-            customApiUrl: '',
-            customApiKey: '',
-            customModel: '',
-            customQualityModel: '',
-            customBalancedModel: '',
-            customFastModel: '',
-            customSuggestionModel: '',
+
             useCharacterBackground: true,
             immersiveMode: false,
             fontSize: window.innerWidth > 768 ? 16 : 14,
@@ -373,15 +366,7 @@ createApp({
                 settings.qualityModel = newModel; // 确保 qualityModel 也同步更新
             }
 
-            if (settings.apiMode === 'custom') {
-                settings.customApiUrl = newUrl;
-                settings.customApiKey = newKey;
-                settings.customQualityModel = settings.qualityModel;
-                settings.customBalancedModel = settings.balancedModel;
-                settings.customFastModel = settings.fastModel;
-                settings.customSuggestionModel = settings.suggestionModel;
-                settings.customModel = newModel;
-            }
+
 
             // Update currentModelMode based on the actual selected model
             if (newModel === settings.fastModel) {
@@ -4389,26 +4374,9 @@ ${textContent}`;
             settings.temperature = 1.0;
 
             // --- Restore Default API Settings if enabled ---
-            if (settings.apiMode === 'public') {
-                settings.apiUrl = DEFAULT_API_CONFIG.apiUrl;
-                settings.apiKey = DEFAULT_API_CONFIG.apiKey;
-                // showToast('已自动恢复默认 API 设置', 'info');
-            } else if (settings.apiMode === undefined && settings.autoRestoreDefaultAPI) {
-                // Legacy support for older configurations
-                settings.apiMode = 'public';
+            // Cleanup legacy API mode settings
+            if (settings.autoRestoreDefaultAPI !== undefined) {
                 delete settings.autoRestoreDefaultAPI;
-                settings.apiUrl = DEFAULT_API_CONFIG.apiUrl;
-                settings.apiKey = DEFAULT_API_CONFIG.apiKey;
-            } else if (settings.apiMode === undefined && settings.autoRestoreDefaultAPI === false) {
-                settings.apiMode = 'custom';
-                delete settings.autoRestoreDefaultAPI;
-                settings.customApiUrl = settings.apiUrl;
-                settings.customApiKey = settings.apiKey;
-                settings.customModel = settings.model;
-                settings.customQualityModel = settings.qualityModel;
-                settings.customBalancedModel = settings.balancedModel;
-                settings.customFastModel = settings.fastModel;
-                settings.customSuggestionModel = settings.suggestionModel;
             }
 
             // --- Enforce Defaults ---
@@ -5446,38 +5414,7 @@ ${textContent}`;
 
             // Auto Image Gen Inquiry
             showAutoImageGenModal,
-            toggleApiMode: (mode) => {
-                if (settings.apiMode === mode) return;
 
-                settings.apiMode = mode;
-
-                if (mode === 'public') {
-                    // Copy current to custom
-                    settings.customApiUrl = settings.apiUrl;
-                    settings.customApiKey = settings.apiKey;
-                    settings.customModel = settings.model;
-                    settings.customQualityModel = settings.qualityModel;
-                    settings.customBalancedModel = settings.balancedModel;
-                    settings.customFastModel = settings.fastModel;
-                    settings.customSuggestionModel = settings.suggestionModel;
-
-                    // Apply public defaults (仅强制刷新 API URL 和 Key)
-                    settings.apiUrl = DEFAULT_API_CONFIG.apiUrl;
-                    settings.apiKey = DEFAULT_API_CONFIG.apiKey;
-
-                } else if (mode === 'custom') {
-                    // Restore custom (初次切换时由缺省判定全部置空)
-                    settings.apiUrl = settings.customApiUrl !== undefined ? settings.customApiUrl : '';
-                    settings.apiKey = settings.customApiKey !== undefined ? settings.customApiKey : '';
-                    settings.qualityModel = settings.customQualityModel !== undefined ? settings.customQualityModel : '';
-                    settings.balancedModel = settings.customBalancedModel !== undefined ? settings.customBalancedModel : '';
-                    settings.fastModel = settings.customFastModel !== undefined ? settings.customFastModel : '';
-                    settings.suggestionModel = settings.customSuggestionModel !== undefined ? settings.customSuggestionModel : '';
-                    settings.model = settings.customModel !== undefined ? settings.customModel : '';
-                }
-
-                saveData();
-            },
             setAutoImageGen: (enabled) => {
                 const autoImageGenWIName = '自动生图';
                 const entry = worldInfo.value.find(w => w.comment === autoImageGenWIName);
