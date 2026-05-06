@@ -93,6 +93,8 @@ createApp({
         const showModelSelector = ref(false);
         const modelSelectionTarget = ref('model');
         const showChatModelSelector = ref(false);
+        const selectedProviderTab = ref(null);
+        const isSyncingProviderModels = ref(false);
         const showCharacterEditor = ref(false);
         const showPresetEditor = ref(false);
         const showRegexEditor = ref(false);
@@ -352,12 +354,23 @@ createApp({
             model: DEFAULT_API_CONFIG.qualityModel
         });
 
+        // --- Multi-Provider System ---
+        const providers = ref([]);
+        const showProviderModal = ref(false);
+        const editingProvider = ref(null);
+        const providerForm = reactive({ name: '', apiUrl: '', apiKey: '' });
+
+        const activeProvider = computed(() => {
+            return providers.value.find(p => p.id === settings.activeProviderId) || null;
+        });
+
         const MAX_CONTEXT_SIZE = 1000000;
 
         const settings = reactive({
             apiUrl: DEFAULT_API_CONFIG.apiUrl,
             apiKey: DEFAULT_API_CONFIG.apiKey,
             model: DEFAULT_API_CONFIG.qualityModel,
+            activeProviderId: null,
             contextSize: MAX_CONTEXT_SIZE,
             temperature: 1.0,
             autoFetchModels: true,
@@ -847,6 +860,7 @@ createApp({
                 settings.contextSize = MAX_CONTEXT_SIZE;
                 await dbSet('silly_tavern_characters', characters.value);
                 await dbSet('silly_tavern_settings', settings);
+                await saveProviders();
                 await dbSet('silly_tavern_presets', presets.value);
                 await dbSet('silly_tavern_regex', regexScripts.value);
                 await dbSet('silly_tavern_worldinfo', worldInfo.value);
@@ -978,6 +992,8 @@ createApp({
                 const savedSettings = await dbGet('silly_tavern_settings');
                 if (savedSettings) Object.assign(settings, savedSettings);
                 settings.contextSize = MAX_CONTEXT_SIZE;
+
+                await loadProviders();
 
                 const savedPresets = await dbGet('silly_tavern_presets');
                 if (savedPresets) presets.value = savedPresets;
@@ -2164,7 +2180,16 @@ ${rawHtml}
                 });
                 if (!response.ok) throw new Error('Failed to fetch models');
                 const data = await response.json();
-                availableModels.value = data.data || [];
+                const models = data.data || [];
+                availableModels.value = models;
+                // Cache models on the active provider
+                if (settings.activeProviderId) {
+                    const activeProv = providers.value.find(p => p.id === settings.activeProviderId);
+                    if (activeProv) {
+                        activeProv.models = models;
+                        saveProviders();
+                    }
+                }
                 if (isManual) showToast(`成功获取 ${availableModels.value.length} 个模型`, 'success');
             } catch (error) {
                 console.error(error);
@@ -2192,6 +2217,21 @@ ${rawHtml}
 
             showModelSelector.value = false;
         };
+
+        // Watch tier model changes to auto-save to active provider
+        watch(() => [settings.qualityModel, settings.balancedModel, settings.fastModel, settings.suggestionModel], () => {
+            if (isSyncingProviderModels.value) return;
+            if (settings.activeProviderId) {
+                const provider = providers.value.find(p => p.id === settings.activeProviderId);
+                if (provider) {
+                    provider.qualityModel = settings.qualityModel;
+                    provider.balancedModel = settings.balancedModel;
+                    provider.fastModel = settings.fastModel;
+                    provider.suggestionModel = settings.suggestionModel;
+                    saveProviders();
+                }
+            }
+        });
 
         // Removed Multiplayer Logic
         // --- Status Check functions ---
@@ -2256,6 +2296,257 @@ ${rawHtml}
             checkApiStatus();
             checkImageGenStatus();
             fetchQuota();
+        };
+
+        // --- Multi-Provider CRUD ---
+        const switchProvider = (providerId) => {
+            const provider = providers.value.find(p => p.id === providerId);
+            if (!provider) return false;
+            settings.apiUrl = provider.apiUrl;
+            settings.apiKey = provider.apiKey;
+            settings.activeProviderId = provider.id;
+            // Sync per-provider tier models without triggering save-back watcher
+            isSyncingProviderModels.value = true;
+            if (provider.qualityModel) settings.qualityModel = provider.qualityModel;
+            if (provider.balancedModel) settings.balancedModel = provider.balancedModel;
+            if (provider.fastModel) settings.fastModel = provider.fastModel;
+            if (provider.suggestionModel) settings.suggestionModel = provider.suggestionModel;
+            isSyncingProviderModels.value = false;
+            // Fetch models for the new provider
+            fetchProviderModels(providerId);
+            return true;
+        };
+
+        const selectModelFromProvider = (modelId, providerId, mode) => {
+            // First switch to the provider if needed
+            if (providerId !== settings.activeProviderId) {
+                switchProvider(providerId);
+            }
+            settings.model = modelId;
+            if (mode) {
+                if (mode === 'fast') {
+                    settings.fastModel = modelId;
+                    currentModelMode.value = 'fast';
+                } else if (mode === 'balanced') {
+                    settings.balancedModel = modelId;
+                    currentModelMode.value = 'balanced';
+                } else if (mode === 'quality') {
+                    settings.qualityModel = modelId;
+                    currentModelMode.value = 'quality';
+                } else if (mode === 'suggestion') {
+                    settings.suggestionModel = modelId;
+                }
+            } else {
+                // Fallback: match existing tier or set quality
+                if (modelId === settings.fastModel) {
+                    currentModelMode.value = 'fast';
+                } else if (modelId === settings.balancedModel) {
+                    currentModelMode.value = 'balanced';
+                } else {
+                    settings.qualityModel = modelId;
+                    currentModelMode.value = 'quality';
+                }
+            }
+            showChatModelSelector.value = false;
+            showToast(`已切换到 ${modelId}`, 'success');
+        };
+
+        const getProviderTierModels = (providerId) => {
+            const provider = providers.value.find(p => p.id === providerId);
+            if (!provider) return [];
+            const currentProviderId = settings.activeProviderId;
+            return [
+                { key: 'quality', label: 'PRO', model: provider.qualityModel, providerId, isActive: settings.model === provider.qualityModel && currentProviderId === providerId },
+                { key: 'balanced', label: 'FLASH', model: provider.balancedModel, providerId, isActive: settings.model === provider.balancedModel && currentProviderId === providerId },
+                { key: 'fast', label: 'LITE', model: provider.fastModel, providerId, isActive: settings.model === provider.fastModel && currentProviderId === providerId },
+                { key: 'suggestion', label: '建议', model: provider.suggestionModel, providerId, isActive: settings.model === provider.suggestionModel && currentProviderId === providerId }
+            ].filter(item => item.model); // Only show configured models
+        };
+
+        const addProvider = (name, apiUrl, apiKey) => {
+            const provider = {
+                id: generateUUID(),
+                name,
+                apiUrl,
+                apiKey,
+                models: [],
+                createdAt: Date.now()
+            };
+            providers.value.push(provider);
+            saveProviders();
+            return provider;
+        };
+
+        const removeProvider = (providerId) => {
+            const idx = providers.value.findIndex(p => p.id === providerId);
+            if (idx === -1) return;
+            providers.value.splice(idx, 1);
+            // If it was active, switch to the first available or clear
+            if (settings.activeProviderId === providerId) {
+                if (providers.value.length > 0) {
+                    switchProvider(providers.value[0].id);
+                } else {
+                    settings.activeProviderId = null;
+                    settings.apiUrl = '';
+                    settings.apiKey = '';
+                }
+            }
+            saveProviders();
+        };
+
+        const updateProvider = (providerId, data) => {
+            const provider = providers.value.find(p => p.id === providerId);
+            if (!provider) return;
+            Object.assign(provider, data);
+            // If active, sync to settings immediately
+            if (settings.activeProviderId === providerId) {
+                settings.apiUrl = provider.apiUrl;
+                settings.apiKey = provider.apiKey;
+            }
+            saveProviders();
+        };
+
+        const openAddProvider = () => {
+            editingProvider.value = null;
+            providerForm.name = '';
+            providerForm.apiUrl = '';
+            providerForm.apiKey = '';
+            showProviderModal.value = true;
+        };
+
+        const openEditProvider = (provider) => {
+            editingProvider.value = provider;
+            providerForm.name = provider.name;
+            providerForm.apiUrl = provider.apiUrl;
+            providerForm.apiKey = provider.apiKey;
+            showProviderModal.value = true;
+        };
+
+        const saveProviderForm = () => {
+            if (!providerForm.name || !providerForm.apiUrl) {
+                showToast('请填写服务商名称和 API 地址', 'warning');
+                return;
+            }
+            if (editingProvider.value) {
+                updateProvider(editingProvider.value.id, {
+                    name: providerForm.name,
+                    apiUrl: providerForm.apiUrl,
+                    apiKey: providerForm.apiKey
+                });
+                // Re-fetch models if apiUrl or apiKey changed
+                if (editingProvider.value.id === settings.activeProviderId) {
+                    fetchProviderModels(editingProvider.value.id);
+                }
+                showToast('服务商已更新', 'success');
+            } else {
+                const p = addProvider(providerForm.name, providerForm.apiUrl, providerForm.apiKey);
+                switchProvider(p.id);
+                showToast('服务商已添加', 'success');
+            }
+            showProviderModal.value = false;
+        };
+
+        const confirmRemoveProvider = async (providerId) => {
+            const provider = providers.value.find(p => p.id === providerId);
+            if (!provider) return;
+            const confirmed = await showVueConfirmModal('确认删除', `确定要删除服务商「${provider.name}」吗？\n此操作不可撤销。`);
+            if (confirmed) {
+                removeProvider(providerId);
+                showToast('服务商已删除', 'info');
+            }
+        };
+
+        const saveProviders = async () => {
+            try {
+                if (!db) await initDB();
+                await dbSet('silly_tavern_providers', providers.value);
+            } catch (e) {
+                console.error('Save providers failed:', e);
+            }
+        };
+
+        const loadProviders = async () => {
+            try {
+                const saved = await dbGet('silly_tavern_providers');
+                if (saved && saved.length > 0) {
+                    providers.value = saved;
+                    // If no active provider or stale reference, use first
+                    if (!settings.activeProviderId || !saved.find(p => p.id === settings.activeProviderId)) {
+                        settings.activeProviderId = saved[0].id;
+                        settings.apiUrl = saved[0].apiUrl;
+                        settings.apiKey = saved[0].apiKey;
+                    }
+                } else {
+                    // Migration: create a provider from existing settings
+                    if (settings.apiUrl) {
+                        let name = '默认服务商';
+                        try {
+                            const url = new URL(settings.apiUrl);
+                            name = url.hostname;
+                        } catch (e) { /* use default name */ }
+                        const provider = {
+                            id: generateUUID(),
+                            name: name,
+                            apiUrl: settings.apiUrl,
+                            apiKey: settings.apiKey || '',
+                            models: [],
+                            qualityModel: settings.qualityModel || '',
+                            balancedModel: settings.balancedModel || '',
+                            fastModel: settings.fastModel || '',
+                            suggestionModel: settings.suggestionModel || '',
+                            createdAt: Date.now()
+                        };
+                        providers.value = [provider];
+                        settings.activeProviderId = provider.id;
+                        await saveProviders();
+                    }
+                }
+                // Ensure all providers have the 4 tier model fields (migration for existing)
+                let needsSave = false;
+                providers.value.forEach(p => {
+                    if (!p.qualityModel && settings.qualityModel) { p.qualityModel = settings.qualityModel; needsSave = true; }
+                    if (!p.balancedModel && settings.balancedModel) { p.balancedModel = settings.balancedModel; needsSave = true; }
+                    if (!p.fastModel && settings.fastModel) { p.fastModel = settings.fastModel; needsSave = true; }
+                    if (!p.suggestionModel && settings.suggestionModel) { p.suggestionModel = settings.suggestionModel; needsSave = true; }
+                });
+                if (needsSave) await saveProviders();
+                // Fetch models for active provider on load
+                if (settings.activeProviderId) {
+                    const activeProv = providers.value.find(p => p.id === settings.activeProviderId);
+                    if (activeProv && activeProv.models && activeProv.models.length > 0) {
+                        availableModels.value = activeProv.models;
+                    } else if (activeProv) {
+                        fetchProviderModels(settings.activeProviderId);
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to load providers:', e);
+            }
+        };
+
+        const fetchProviderModels = async (providerId, isManual = false) => {
+            const provider = providers.value.find(p => p.id === providerId);
+            if (!provider) return;
+            try {
+                if (isManual) showToast(`正在获取 ${provider.name} 的模型列表...`, 'info');
+                const url = provider.apiUrl.endsWith('/v1') ? `${provider.apiUrl}/models` : `${provider.apiUrl}/v1/models`;
+                const response = await fetch(url, {
+                    headers: { 'Authorization': `Bearer ${provider.apiKey}` }
+                });
+                if (!response.ok) throw new Error('Failed to fetch models');
+                const data = await response.json();
+                const models = data.data || [];
+                provider.models = models;
+                // If this is the active provider, update availableModels too
+                if (providerId === settings.activeProviderId) {
+                    availableModels.value = models;
+                }
+                saveProviders();
+                if (isManual) showToast(`成功获取 ${models.length} 个模型`, 'success');
+            } catch (error) {
+                console.error(error);
+                if (isManual) showToast('获取模型失败: ' + error.message, 'error');
+            }
         };
 
         // Removed Personal Channel and Friends Logic
@@ -5694,7 +5985,7 @@ image###生成的提示词###
         return {
             switchProfile, createNewProfile, deleteProfile, userProfiles, activeProfileId, showProfileDropdown,
             processMainContent,
-            currentView, showMobileMenu, showDescriptionPanel, showModelSelector, modelSelectionTarget, showChatModelSelector, showCharacterEditor, showAddCharacterMenu, showPresetEditor,
+            currentView, showMobileMenu, showDescriptionPanel, showModelSelector, modelSelectionTarget, showChatModelSelector, selectedProviderTab, showCharacterEditor, showAddCharacterMenu, showPresetEditor,
             showExportModal, sysInstruction, showInstructionPanel, exportType, exportItems, selectedExportIndices, // Export Modal
             showContextViewerModal, lastContextMessages, lastTriggeredWorldInfos, // Context Viewer
             showCharacterExportModal, characterToExportIndex, openCharacterExportModal, confirmCharacterExport, // Character Export Modal
@@ -6311,7 +6602,26 @@ image###生成的提示词###
                 }
                 showAutoImageGenModal.value = false;
                 saveData();
-            }
+            },
+
+            // Multi-Provider Exports
+            providers,
+            activeProvider,
+            showProviderModal,
+            editingProvider,
+            providerForm,
+            switchProvider,
+            selectModelFromProvider,
+            addProvider,
+            removeProvider,
+            updateProvider,
+            openAddProvider,
+            openEditProvider,
+            saveProviderForm,
+            confirmRemoveProvider,
+            fetchProviderModels,
+            getProviderTierModels,
+            isSyncingProviderModels
         };
     }
 }).mount('#app');

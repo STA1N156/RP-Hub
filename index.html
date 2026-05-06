@@ -997,109 +997,77 @@
                                         leave-from-class="opacity-100 translate-y-0 scale-100"
                                         leave-to-class="opacity-0 translate-y-2 scale-95">
                                         <div v-if="showChatModelSelector"
-                                            class="absolute bottom-full right-0 mb-4 z-50 pointer-events-auto min-w-[180px] md:min-w-[240px] transform-gpu origin-bottom-right">
+                                            class="absolute bottom-full right-0 mb-4 z-50 pointer-events-auto min-w-[260px] md:min-w-[320px] transform-gpu origin-bottom-right">
                                             <div
-                                                class="bg-white/95 backdrop-blur-xl border border-gray-200 shadow-xl rounded-2xl p-1.5 flex flex-col gap-1 ring-1 ring-black/5">
-                                                <button @click="modelMode = 'quality'; showChatModelSelector = false"
-                                                    :class="['w-full px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 flex items-center justify-between active:scale-95', modelMode === 'quality' ? 'bg-primary-50 text-primary-700 shadow-sm' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900']">
-                                                    <div class="flex flex-col items-start gap-0.5">
-                                                        <div class="flex items-center">
-                                                            <svg class="w-4 h-4 mr-2"
-                                                                :class="modelMode === 'quality' ? 'text-primary-500' : 'text-gray-400'"
-                                                                fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path stroke-linecap="round" stroke-linejoin="round"
-                                                                    stroke-width="2"
-                                                                    d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z">
-                                                                </path>
+                                                class="bg-white/95 backdrop-blur-xl border border-gray-200 shadow-xl rounded-2xl p-2 flex flex-col gap-1.5 ring-1 ring-black/5">
+                                                <!-- Provider Tabs -->
+                                                <div class="flex gap-1 overflow-x-auto no-scrollbar pb-1 border-b border-gray-100 mb-1">
+                                                    <template v-for="p in providers" :key="p.id">
+                                                        <button @click="selectedProviderTab = p.id"
+                                                            :class="['px-2.5 py-1.5 rounded-lg text-[10px] md:text-xs font-bold transition-all duration-200 whitespace-nowrap flex-shrink-0',
+                                                                selectedProviderTab === p.id
+                                                                    ? 'bg-teal-500 text-white shadow-sm'
+                                                                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200']">
+                                                            {{ p.name }}
+                                                        </button>
+                                                    </template>
+                                                    <button @click="openAddProvider(); showChatModelSelector = false"
+                                                        class="px-2 py-1.5 rounded-lg text-[10px] md:text-xs font-medium text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all flex-shrink-0"
+                                                        title="添加服务商">
+                                                        + 添加
+                                                    </button>
+                                                </div>
+                                                <!-- Model List: Show 4 tier models per provider -->
+                                                <div class="flex flex-col gap-0.5">
+                                                    <template v-if="getProviderTierModels(selectedProviderTab).length > 0">
+                                                        <div v-for="item in getProviderTierModels(selectedProviderTab)" :key="item.key"
+                                                            @click="selectModelFromProvider(item.model, item.providerId, item.key)"
+                                                            :class="['w-full px-3 py-2 rounded-xl text-xs font-medium transition-all duration-200 flex items-center gap-2 cursor-pointer active:scale-[0.98]',
+                                                                item.isActive
+                                                                    ? 'bg-primary-50 text-primary-700 shadow-sm'
+                                                                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900']">
+                                                            <span class="text-[10px] font-bold text-gray-400 w-10 flex-shrink-0">{{ item.label }}</span>
+                                                            <span class="truncate font-mono flex-1">{{ item.model }}</span>
+                                                            <svg v-if="item.isActive"
+                                                                class="w-3.5 h-3.5 text-primary-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                                                             </svg>
-                                                            质量 (PRO)
                                                         </div>
-                                                        <div class="text-[10px] font-medium text-gray-500/80 ml-6 tracking-wide truncate max-w-[140px] md:max-w-[190px]"
-                                                            :title="settings.qualityModel">{{ settings.qualityModel }}
-                                                        </div>
+                                                    </template>
+                                                    <div v-else-if="selectedProviderTab"
+                                                        class="text-center text-gray-400 text-xs py-4">
+                                                        该服务商尚未配置模型，请先前往设置页面配置
                                                     </div>
-                                                    <svg v-if="modelMode === 'quality'"
-                                                        class="w-3.5 h-3.5 text-primary-500" fill="none"
-                                                        stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round"
-                                                            stroke-width="2" d="M5 13l4 4L19 7"></path>
-                                                    </svg>
-                                                </button>
-                                                <button @click="modelMode = 'balanced'; showChatModelSelector = false"
-                                                    :class="['w-full px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 flex items-center justify-between active:scale-95', modelMode === 'balanced' ? 'bg-primary-50 text-primary-700 shadow-sm' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900']">
-                                                    <div class="flex flex-col items-start gap-0.5">
-                                                        <div class="flex items-center">
-                                                            <svg class="w-4 h-4 mr-2"
-                                                                :class="modelMode === 'balanced' ? 'text-primary-500' : 'text-gray-400'"
-                                                                fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path stroke-linecap="round" stroke-linejoin="round"
-                                                                    stroke-width="2"
-                                                                    d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3">
-                                                                </path>
-                                                            </svg>
-                                                            均衡 (FLASH)
-                                                        </div>
-                                                        <div class="text-[10px] font-medium text-gray-500/80 ml-6 tracking-wide truncate max-w-[140px] md:max-w-[190px]"
-                                                            :title="settings.balancedModel">{{ settings.balancedModel }}
-                                                        </div>
+                                                    <div v-else-if="providers.length === 0"
+                                                        class="text-center text-gray-400 text-xs py-4">
+                                                        暂无服务商，请先在设置中添加
                                                     </div>
-                                                    <svg v-if="modelMode === 'balanced'"
-                                                        class="w-3.5 h-3.5 text-primary-500" fill="none"
-                                                        stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round"
-                                                            stroke-width="2" d="M5 13l4 4L19 7"></path>
-                                                    </svg>
-                                                </button>
-                                                <button @click="modelMode = 'fast'; showChatModelSelector = false"
-                                                    :class="['w-full px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 flex items-center justify-between active:scale-95', modelMode === 'fast' ? 'bg-primary-50 text-primary-700 shadow-sm' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900']">
-                                                    <div class="flex flex-col items-start gap-0.5">
-                                                        <div class="flex items-center">
-                                                            <svg class="w-4 h-4 mr-2"
-                                                                :class="modelMode === 'fast' ? 'text-primary-500' : 'text-gray-400'"
-                                                                fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path stroke-linecap="round" stroke-linejoin="round"
-                                                                    stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z">
-                                                                </path>
-                                                            </svg>
-                                                            快速 (LITE)
-                                                        </div>
-                                                        <div class="text-[10px] font-medium text-gray-500/80 ml-6 tracking-wide truncate max-w-[140px] md:max-w-[190px]"
-                                                            :title="settings.fastModel">{{ settings.fastModel }}</div>
+                                                    <div v-else
+                                                        class="text-center text-gray-400 text-xs py-4">
+                                                        请选择一个服务商
                                                     </div>
-                                                    <svg v-if="modelMode === 'fast'"
-                                                        class="w-3.5 h-3.5 text-primary-500" fill="none"
-                                                        stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round"
-                                                            stroke-width="2" d="M5 13l4 4L19 7"></path>
-                                                    </svg>
-                                                </button>
+                                                </div>
+                                                <!-- Footer: quick settings link -->
+                                                <div class="text-center pt-1 border-t border-gray-100 mt-1">
+                                                    <button @click="currentView = 'settings'; showChatModelSelector = false"
+                                                        class="text-[10px] text-gray-400 hover:text-teal-600 transition-colors">
+                                                        管理服务商 →
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
                                     </transition>
 
                                     <!-- Current Model Toggle Button -->
-                                    <button @click.stop="showChatModelSelector = !showChatModelSelector"
-                                        class="px-3.5 py-1.5 rounded-full text-[10px] md:text-xs font-bold transition-all duration-300 flex items-center bg-white hover:bg-gray-50 border border-gray-200 shadow-sm active:scale-95 text-primary-600"
+                                    <button @click.stop="showChatModelSelector = !showChatModelSelector; if(showChatModelSelector) selectedProviderTab = settings.activeProviderId"
+                                        class="px-3 py-1.5 rounded-full text-[10px] md:text-xs font-bold transition-all duration-300 flex items-center bg-white hover:bg-gray-50 border border-gray-200 shadow-sm active:scale-95 text-primary-600 max-w-[160px] md:max-w-[220px]"
                                         title="切换模型">
-                                        <svg v-if="modelMode === 'quality'" class="w-3.5 h-3.5 mr-1" fill="none"
-                                            stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z">
-                                            </path>
-                                        </svg>
-                                        <svg v-else-if="modelMode === 'balanced'" class="w-3.5 h-3.5 mr-1" fill="none"
-                                            stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3">
-                                            </path>
-                                        </svg>
-                                        <svg v-else class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor"
-                                            viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                                        </svg>
-                                        {{ modelMode === 'quality' ? 'PRO' : modelMode === 'balanced' ? 'FLASH' : 'LITE'
-                                        }}
+                                        <svg class="w-3.5 h-3.5 mr-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z">
+                                        </path>
+                                    </svg>
+                                        <span class="truncate">{{ settings.model || '选择模型' }}</span>
+                                        <span v-if="activeProvider" class="ml-1 text-gray-400">·{{ activeProvider.name }}</span>
                                     </button>
                                 </div>
                             </div>
@@ -1877,6 +1845,45 @@
                                             </div>
                                         </div>
                                     </div>
+                                </div>
+                            </div>
+
+                            <!-- Provider Management Section -->
+                            <div class="mb-6 pb-6 border-b border-gray-100">
+                                <h4
+                                    class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center justify-between">
+                                    <span>API 服务商</span>
+                                    <button @click="openAddProvider"
+                                        class="text-teal-600 hover:text-teal-700 cursor-pointer transition-colors text-xs normal-case font-medium flex items-center">
+                                        <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                        </svg>
+                                        添加服务商
+                                    </button>
+                                </h4>
+                                <!-- Provider Tabs -->
+                                <div class="flex flex-wrap gap-2 mb-3">
+                                    <template v-for="p in providers" :key="p.id">
+                                        <button @click="switchProvider(p.id)"
+                                            :class="['px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 border',
+                                                settings.activeProviderId === p.id
+                                                    ? 'bg-teal-500 text-white border-teal-500 shadow-sm shadow-teal-200'
+                                                    : 'bg-white text-gray-600 border-gray-200 hover:border-teal-300 hover:text-teal-600']">
+                                            {{ p.name }}
+                                        </button>
+                                    </template>
+                                    <div v-if="providers.length === 0"
+                                        class="text-xs text-gray-400 py-1.5">暂无服务商，请添加</div>
+                                </div>
+                                <!-- Active Provider Actions -->
+                                <div v-if="activeProvider" class="flex items-center gap-3 text-xs text-gray-400 mb-2">
+                                    <span class="text-gray-500 font-medium">{{ activeProvider.name }}</span>
+                                    <button @click="openEditProvider(activeProvider)"
+                                        class="hover:text-teal-600 transition-colors">编辑</button>
+                                    <button @click="confirmRemoveProvider(activeProvider.id)"
+                                        class="hover:text-red-500 transition-colors">删除</button>
+                                    <button @click="fetchProviderModels(activeProvider.id, true)"
+                                        class="hover:text-teal-600 transition-colors">刷新模型</button>
                                 </div>
                             </div>
 
@@ -4497,6 +4504,68 @@
                         </button>
                         <button @click="globalConfirmModal.onConfirm" class="flex-1 py-2.5 px-4 bg-primary-600 hover:bg-primary-500 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all focus:outline-none focus:ring-2 focus:ring-primary-400 hover:-translate-y-0.5">
                             立即重试
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </transition>
+
+        <!-- Provider Editor Modal -->
+        <transition enter-active-class="transition-all duration-200 ease-out"
+            enter-from-class="opacity-0" enter-to-class="opacity-100"
+            leave-active-class="transition-all duration-150 ease-in"
+            leave-from-class="opacity-100" leave-to-class="opacity-0">
+            <div v-if="showProviderModal"
+                class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
+                <div class="bg-white rounded-2xl border border-gray-200 w-full max-w-md flex flex-col shadow-2xl overflow-hidden" @click.stop>
+                    <div class="p-4 md:p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/80 flex-shrink-0">
+                        <div class="flex items-center gap-3">
+                            <div class="p-2 bg-teal-50 text-teal-600 rounded-lg">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-bold text-gray-800 leading-tight">{{ editingProvider ? '编辑服务商' : '添加服务商' }}</h3>
+                                <p class="text-xs text-gray-500">API Provider</p>
+                            </div>
+                        </div>
+                        <button @click="showProviderModal = false"
+                            class="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-full transition-all">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="p-6 space-y-5 bg-gray-50/30">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">服务商名称</label>
+                            <input v-model="providerForm.name" type="text"
+                                class="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-gray-800 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 focus:outline-none transition-all shadow-sm font-medium"
+                                placeholder="例如：OpenAI、DeepSeek">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">API 地址</label>
+                            <input v-model="providerForm.apiUrl" type="text"
+                                class="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-gray-800 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 focus:outline-none transition-all shadow-sm font-mono text-sm"
+                                placeholder="https://api.openai.com/v1">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">API Key</label>
+                            <input v-model="providerForm.apiKey" type="password"
+                                class="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-gray-800 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 focus:outline-none transition-all shadow-sm font-mono text-sm"
+                                placeholder="sk-...">
+                        </div>
+                    </div>
+                    <div class="p-4 md:p-5 border-t border-gray-100 flex justify-end space-x-3 bg-gray-50/80 flex-shrink-0">
+                        <button @click="showProviderModal = false"
+                            class="px-5 py-2.5 bg-white hover:bg-gray-100 text-gray-700 border border-gray-200 rounded-xl transition-all shadow-sm font-medium text-sm active:scale-95">取消</button>
+                        <button @click="saveProviderForm"
+                            class="px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl transition-all shadow-md hover:shadow-lg font-bold text-sm active:scale-95 flex items-center">
+                            <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                            {{ editingProvider ? '保存' : '添加' }}
                         </button>
                     </div>
                 </div>
