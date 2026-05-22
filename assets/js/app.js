@@ -514,6 +514,8 @@ createApp({
         const appendDeepSeekThinkingInstruction = (messages, realUserStartIndex = 0) => {
             if (!isDeepSeekModel()) return;
             const deepSeekThinkingInstruction = getDeepSeekThinkingInstruction();
+            const isContextUserMessage = (message) => typeof message.content === 'string'
+                && message.content.startsWith('[角色记忆');
             const appendToMessage = (target) => {
                 if (!target || typeof target.content !== 'string') return false;
                 if (target.content.includes(deepSeekThinkingInstructionMarker)) return false;
@@ -524,8 +526,21 @@ createApp({
                 || messages.find(message => message.role === 'user' && typeof message.content === 'string' && message.content.startsWith('[测试内容]1'));
             appendToMessage(fakeFirstUser);
 
-            const realFirstUser = messages.find((message, index) => index >= realUserStartIndex && message.role === 'user');
+            const realFirstUser = messages.find((message, index) => index >= realUserStartIndex && message.role === 'user' && !isContextUserMessage(message));
             appendToMessage(realFirstUser);
+        };
+        const mergeConsecutiveUserMessages = (messages) => {
+            const merged = [];
+            messages.forEach(message => {
+                const previous = merged[merged.length - 1];
+                if (previous && previous.role === 'user' && message.role === 'user') {
+                    previous.content = [previous.content, message.content].filter(Boolean).join('\n\n');
+                    if (!previous.name && message.name) previous.name = message.name;
+                    return;
+                }
+                merged.push({ ...message });
+            });
+            return merged;
         };
 
         const regexScripts = ref([]);
@@ -3566,24 +3581,22 @@ ${content}
 
             systemPromptParts.push(`[Style Priority]\n开场白和历史消息只用于理解剧情事实、人物关系和场景状态，不作为文风模板；不要继承或模仿开场白、前文回复的句式、语气密度、段落节奏或排版习惯。最终回复的文风必须优先遵守上方系统预设中的规定文风。`);
 
-            // 5. Before Char WI
+            // 5. Character pre-dialogue context (user side)
+            const characterPreludeParts = [];
             if (wiGroups.before_char.length > 0) {
-                systemPromptParts.push(joinContent(wiGroups.before_char));
+                characterPreludeParts.push(joinContent(wiGroups.before_char));
             }
-
-            // 6. Character Definition
             let charDefinitionParts = [`[Character]`, charPrompt];
             if (mesExample && mesExample.trim()) {
                 charDefinitionParts.push(mesExample);
             }
-            systemPromptParts.push(charDefinitionParts.join('\n\n'));
-
-            // 7. After Char WI
+            characterPreludeParts.push(charDefinitionParts.join('\n\n'));
             if (wiGroups.after_char.length > 0) {
-                systemPromptParts.push(joinContent(wiGroups.after_char));
+                characterPreludeParts.push(joinContent(wiGroups.after_char));
             }
+            const characterPreludePrompt = characterPreludeParts.join('\n\n');
 
-            // 8. User Info (Moved to end)
+            // 6. User Info (Moved to end)
             systemPromptParts.push(userPrompt);
 
             const systemPrompt = systemPromptParts.join('\n\n');
@@ -3662,6 +3675,11 @@ ${content}
                 ];
                 messages.push(...preludeMessages);
                 safeTargetLimit += preludeMessages.length;
+            }
+
+            if (characterPreludePrompt) {
+                messages.push({ role: 'user', content: characterPreludePrompt });
+                safeTargetLimit += 1;
             }
 
             // 确保开场白存在 (Double check for First Message)
@@ -3808,10 +3826,10 @@ ${content}
                 })
             );
 
-            // 如果有压缩内容，将其作为 system 消息插入到开场白/聊天记录之前
+            // 如果有压缩内容，将其作为 user 消息插入到开场白/聊天记录之前
             if (compressedMemoryContent) {
-                // 插入到 system prompt 和 jailbreak 之后，聊天记录之前
-                messages.splice(safeTargetLimit, 0, { role: 'system', content: compressedMemoryContent });
+                // 插入到 system prompt、预对话和 jailbreak 之后，聊天记录之前
+                messages.splice(safeTargetLimit, 0, { role: 'user', content: compressedMemoryContent });
             }
 
             // Handle @D (At Depth) and other message-level injections
@@ -3843,7 +3861,7 @@ ${content}
                         // 如果 depth 超出历史记录长度，或计算出的 targetIndex 会破坏破限多轮对话的顺序，则进行保护
                         if (targetIndex < safeTargetLimit) targetIndex = safeTargetLimit;
 
-                        finalMessages.splice(targetIndex, 0, { role: 'system', content });
+                        finalMessages.splice(targetIndex, 0, { role: 'user', content });
                     });
                 }
 
@@ -3907,7 +3925,7 @@ ${content}
                         }
                         if (targetIndex < safeTargetLimit) targetIndex = safeTargetLimit;
 
-                        finalMessages.splice(targetIndex, 0, { role: 'system', content: fullContent });
+                        finalMessages.splice(targetIndex, 0, { role: 'user', content: fullContent });
                     }
                 }
 
@@ -3933,6 +3951,7 @@ ${content}
 
             messages = processMessageInjections(messages);
             appendDeepSeekThinkingInstruction(messages, safeTargetLimit);
+            messages = mergeConsecutiveUserMessages(messages);
 
             // Escape HTML helper
             const escapeHtml = (unsafe) => {
@@ -4004,8 +4023,10 @@ ${content}
                     }
                 });
 
+                const isMemoryMessage = m.content.startsWith('[角色记忆');
+
                 // Detect Memory injections in this message
-                if (m.role === 'system' && m.content.startsWith('[角色记忆')) {
+                if (isMemoryMessage) {
                     const memLines = m.content.split('\n').filter(l => l.startsWith('- ['));
                     const turnLines = m.content.split('\n').filter(l => l.startsWith('[——'));
                     injectedWIsMap.set('角色记忆', '已注入');
@@ -4026,7 +4047,7 @@ ${content}
                 });
 
                 // Highlight memory content with purple
-                if (m.role === 'system' && m.content.startsWith('[角色记忆')) {
+                if (isMemoryMessage) {
                     renderedContent = renderedContent.replace(
                         /\[角色记忆[^\]]*\]/g,
                         '<mark class="bg-purple-200/80 text-purple-900 border-b border-purple-400 font-bold px-1 rounded shadow-sm">$&</mark>'
@@ -4043,7 +4064,7 @@ ${content}
                     content: m.content,
                     renderedContent: renderedContent,
                     floor: index + 1,
-                    isMemory: m.role === 'system' && m.content.startsWith('[角色记忆'),
+                    isMemory: isMemoryMessage,
                     wiTriggers: Array.from(injectedWIsMap.entries()).map(([name, triggers]) => ({ name, triggers }))
                 };
             });
