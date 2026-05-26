@@ -2878,7 +2878,7 @@
                                 d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
                             </path>
                         </svg>
-                        {{ memoryStats.activeTotal }} 条记忆
+                        {{ memoryStats.activeTotal }} 个分片
                     </div>
                     <div v-if="memoryStats.activeTurnCount > 0"
                         class="flex items-center gap-1.5 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100">
@@ -2888,15 +2888,6 @@
                             </path>
                         </svg>
                         {{ memoryStats.activeTurnCount }} 次对话
-                    </div>
-                    <div v-if="memoryStats.activeTotalChars > 0"
-                        class="flex items-center gap-1.5 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100">
-                        <svg class="w-3.5 h-3.5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129">
-                            </path>
-                        </svg>
-                        {{ memoryStats.activeTotalChars }} 字
                     </div>
                 </div>
 
@@ -2983,10 +2974,10 @@
                                 </div>
                                 <div class="bg-gray-50/80 p-3 rounded-xl border border-gray-100">
                                     <div class="flex justify-between items-center mb-2">
-                                        <label class="text-xs font-medium text-gray-500">记忆召回数量</label>
+                                        <label class="text-xs font-medium text-gray-500">记忆召回分片数</label>
                                         <span
                                             class="text-xs font-mono text-primary-600 bg-primary-50 px-1.5 py-0.5 rounded border border-primary-100">{{
-                                            memorySettings.vectorTopK || 10 }} 条</span>
+                                            memorySettings.vectorTopK || 10 }} 个分片</span>
                                     </div>
                                     <input type="range" v-model.number="memorySettings.vectorTopK" min="5" max="30" step="1"
                                         class="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-primary-500">
@@ -3000,8 +2991,7 @@
                                         <label class="text-xs font-medium text-gray-500">保留最近楼层</label>
                                         <span
                                             class="text-xs font-mono text-primary-600 bg-primary-50 px-1.5 py-0.5 rounded border border-primary-100">{{
-                                            memorySettings.keepFloors === 0 ? '关闭' : memorySettings.keepFloors + ' 楼' +
-                                            (memoryStats.savedChars > 0 ? '（节约' + memoryStats.savedChars + '字）' : '')
+                                            memorySettings.keepFloors === 0 ? '关闭' : memorySettings.keepFloors + ' 楼'
                                             }}</span>
                                     </div>
                                     <input type="range" v-model.number="keepFloorsSlider" min="10" max="65" step="5"
@@ -3028,14 +3018,14 @@
                             <span class="truncate">向量记忆检索</span>
                         </span>
                         <div class="text-xs font-mono text-gray-600 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1">
-                            {{ memoryStats.vector }} 片段
+                            {{ memoryStats.vector }} 个分片
                         </div>
                     </div>
 
                     <div class="px-4 pb-4 pt-3 border-t border-gray-100 space-y-4">
                         <div class="grid grid-cols-2 gap-2">
                             <div class="rounded-xl bg-gray-50 border border-gray-100 px-3 py-2">
-                                <div class="text-[10px] font-bold text-gray-400 mb-1">总片段</div>
+                                <div class="text-[10px] font-bold text-gray-400 mb-1">总分片</div>
                                 <div class="text-lg font-black text-gray-800">{{ memoryStats.vector }}</div>
                             </div>
                             <div class="rounded-xl bg-gray-50 border border-gray-100 px-3 py-2">
@@ -3068,7 +3058,7 @@
 
                         <div v-if="vectorMemorySearchResults.length > 0" class="space-y-2">
                             <div class="flex items-center justify-between gap-3 text-[11px] font-bold text-gray-500">
-                                <span>记忆片段 · {{ vectorMemorySearchResults.length }} / 20</span>
+                                <span>记忆分片 · {{ vectorMemorySearchResults.length }} / 20</span>
                                 <div class="grid grid-cols-2 gap-1 bg-gray-50 border border-gray-200 rounded-lg p-0.5">
                                     <button type="button" @click="vectorMemorySearchSortMode = 'time'"
                                         :class="['px-2 py-1 rounded-md transition-all', vectorMemorySearchSortMode === 'time' ? 'bg-white text-primary-700 shadow-sm border border-primary-100' : 'text-gray-400 hover:text-gray-600']">
@@ -3312,7 +3302,7 @@
                         </svg>
                     </div>
                     <h3 class="text-lg font-bold text-gray-900 mb-1">无需补录</h3>
-                    <p class="text-sm text-gray-500">当前没有遗漏的记忆片段</p>
+                    <p class="text-sm text-gray-500">当前没有遗漏的记忆分片</p>
                 </div>
                 <div class="bg-gray-50 p-4 flex justify-center border-t border-gray-100">
                     <button @click="showNoMemoryNeededModal = false"
@@ -4606,7 +4596,7 @@
                                         d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253">
                                     </path>
                                 </svg>
-                                <span>本次插入的世界书/记忆 (共 {{ lastTriggeredWorldInfos.length }} 条)</span>
+                                <span>本次插入的世界书/记忆 (共 {{ lastTriggeredWorldInfos.length }} 项)</span>
                                 <div class="ml-auto flex items-center">
                                     <svg class="w-4 h-4 text-blue-500 group-open:rotate-180 transition-transform duration-300"
                                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
