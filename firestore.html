@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>RP-Hub 缓存备份工具</title>
+  <script type="module">
+    // 引入 Firebase SDK
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
+    import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
+
+    // 你的 Firebase 配置（保持你提供的内容）
+    const firebaseConfig = {
+      apiKey: "AIzaSyAV9RQL3xEnXYvjDBlAYmwGq6aOYdE0yB0",
+      authDomain: "rp-hub-cache.firebaseapp.com",
+      projectId: "rp-hub-cache",
+      storageBucket: "rp-hub-cache.firebasestorage.app",
+      messagingSenderId: "505864534271",
+      appId: "1:505864534271:web:c1c137ced13009759bb4ca"
+    };
+
+    // 初始化 Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // 保存 localStorage 数据到 Firestore
+    async function saveCache() {
+      const data = localStorage.getItem("cache");
+      if (!data) {
+        alert("⚠️ 当前没有缓存数据。");
+        return;
+      }
+      await setDoc(doc(db, "users", "zhou"), { cache: data });
+      alert("✅ 缓存已备份到云端！");
+    }
+
+    // 从 Firestore 读取缓存数据
+    async function loadCache() {
+      const snap = await getDoc(doc(db, "users", "zhou"));
+      if (snap.exists()) {
+        localStorage.setItem("cache", snap.data().cache);
+        alert("✅ 缓存已恢复到本地！");
+      } else {
+        alert("⚠️ 云端没有缓存数据。");
+      }
+    }
+  </script>
+</head>
+<body>
+  <h2>RP-Hub 缓存备份工具</h2>
+  <button onclick="saveCache()">备份缓存</button>
+  <button onclick="loadCache()">恢复缓存</button>
+</body>
+</html>
