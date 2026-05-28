@@ -858,7 +858,7 @@ createApp({
         const MEMORY_VECTOR_MERGE_MAX_LENGTH = 400;
         const MEMORY_VECTOR_MIN_TOP_K = 10;
         const MEMORY_VECTOR_MAX_TOP_K = 30;
-        const MEMORY_VECTOR_DEFAULT_TOP_K = 10;
+        const MEMORY_VECTOR_DEFAULT_TOP_K = 15;
         const MEMORY_KEEP_FLOORS_MIN = 10;
         const MEMORY_KEEP_FLOORS_MAX = 60;
         const MEMORY_KEEP_FLOORS_DEFAULT = 40;
@@ -4534,7 +4534,9 @@ ${content}
 
             let selectedVectorMemories = [];
             if (memorySettings.enabled && memories.value.length > 0) {
-                selectedVectorMemories = await selectVectorMemoriesForContext(abortController.value.signal);
+                selectedVectorMemories = await selectVectorMemoriesForContext(abortController.value.signal, {
+                    excludedTurns: getRetainedRecentMemoryTurns(postprocessedChatHistory)
+                });
             }
 
             // Handle @D (At Depth) and other message-level injections
@@ -4572,7 +4574,7 @@ ${content}
 
                 // Memory Injection (at_depth style, grouped by turn)
                 if (memorySettings.enabled && selectedVectorMemories.length > 0) {
-                    const enabledMemories = sortVectorMemoriesByTime(selectedVectorMemories);
+                    const enabledMemories = mergeRepeatedTurnVectorMemories(selectedVectorMemories);
 
                     if (enabledMemories.length > 0) {
                         const formatMemoryLine = (m) => {
@@ -4585,7 +4587,7 @@ ${content}
                             return [
                                 `  ${fragmentTag}`,
                                 fragmentText,
-                                `  ${fragmentTag}`
+                                `  </memory_fragment>`
                             ].join('\n');
                         };
 
@@ -5675,26 +5677,33 @@ ${content}
             Math.min(MEMORY_VECTOR_MAX_TOP_K, Number(memorySettings.vectorTopK) || MEMORY_VECTOR_DEFAULT_TOP_K)
         );
 
+        const getRecentUserMemoryQueries = (limit = 3) => {
+            return getPostprocessedChatMessages(chatHistory.value, { includeSystem: false })
+                .filter(message => message.role === 'user')
+                .map(message => trimMemoryText(getCleanMemoryMessageText(message), 800))
+                .filter(Boolean)
+                .slice(-Math.max(1, limit));
+        };
+
         const getLatestUserMemoryQuery = () => {
-            const latestUserMessage = [...getPostprocessedChatMessages(chatHistory.value, { includeSystem: false })].reverse().find(m => m.role === 'user');
-            if (!latestUserMessage) return '';
-            return trimMemoryText(getCleanMemoryMessageText(latestUserMessage), 800);
+            const queries = getRecentUserMemoryQueries(1);
+            return queries[0] || '';
         };
 
         const buildVectorMemoryQueryText = () => {
-            const latestUserQuery = getLatestUserMemoryQuery();
-            const recentContext = buildMemoryChunkText(getPostprocessedChatMessages(chatHistory.value, { includeSystem: false }).slice(-4), 1200);
-            if (!latestUserQuery) return recentContext;
-            const labeledLatestUserQuery = `用户：${latestUserQuery}`;
-            if (latestUserQuery.length <= 120) {
-                return [
-                    `当前问题：${labeledLatestUserQuery}`,
-                    `检索重点：${labeledLatestUserQuery}`
-                ].join('\n');
-            }
+            const recentUserQueries = getRecentUserMemoryQueries(1);
+            if (recentUserQueries.length === 0) return '';
+
+            const latestUserQuery = recentUserQueries[recentUserQueries.length - 1];
+            const previousUserQueries = recentUserQueries.slice(0, -1);
+
             return [
-                `当前用户输入：${labeledLatestUserQuery}`,
-                recentContext ? `最近上下文：\n${recentContext}` : ''
+                `当前问题：用户：${latestUserQuery}`,
+                ...[...previousUserQueries].reverse().map((query, index) => {
+                    const distance = index + 1;
+                    const label = distance === 1 ? '上一轮用户输入' : `前${distance}轮用户输入`;
+                    return `${label}：用户：${query}`;
+                })
             ].filter(Boolean).join('\n\n');
         };
 
@@ -5798,10 +5807,126 @@ ${content}
             return result;
         };
 
+        const buildFullTurnMemoryText = (turnInfo) => {
+            const messagesArray = Array.isArray(turnInfo?.messages) ? turnInfo.messages : [];
+            return buildMemoryChunkText(messagesArray, Number.MAX_SAFE_INTEGER);
+        };
+
+        const buildMergedVectorMemoryFallbackText = (items) => {
+            const orderedItems = sortVectorMemoriesByTime(items);
+            let userBlock = '';
+            const roleBlocks = [];
+
+            orderedItems.forEach(memory => {
+                const text = getVectorMemoryText(memory);
+                if (!text) return;
+
+                const roleMarker = '\n角色卡：';
+                const roleIndex = text.indexOf(roleMarker);
+                if (roleIndex >= 0) {
+                    if (!userBlock) userBlock = text.slice(0, roleIndex).trim();
+                    const roleText = text.slice(roleIndex + roleMarker.length).trim();
+                    if (roleText) roleBlocks.push(roleText);
+                    return;
+                }
+
+                if (!roleBlocks.includes(text)) roleBlocks.push(text);
+            });
+
+            const roleBlock = roleBlocks.filter(Boolean).join('\n\n').trim();
+            return [
+                userBlock,
+                roleBlock ? `角色卡：${roleBlock}` : ''
+            ].filter(Boolean).join('\n\n').trim();
+        };
+
+        const mergeRepeatedTurnVectorMemories = (items) => {
+            const orderedItems = sortVectorMemoriesByTime(items);
+            const memoriesByTurn = new Map();
+
+            orderedItems.forEach(memory => {
+                const turn = Number(memory?.turn) || 0;
+                if (turn <= 0) return;
+                if (!memoriesByTurn.has(turn)) memoriesByTurn.set(turn, []);
+                memoriesByTurn.get(turn).push(memory);
+            });
+
+            const repeatedTurns = new Set(
+                [...memoriesByTurn.entries()]
+                    .filter(([, turnMemories]) => turnMemories.length >= 2)
+                    .map(([turn]) => turn)
+            );
+            if (repeatedTurns.size === 0) return orderedItems;
+
+            const snapshot = buildConversationTurnSnapshot(chatHistory.value, { includeSystem: false });
+            const turnsByNumber = new Map((snapshot.turns || []).map(turnInfo => [Number(turnInfo.turn) || 0, turnInfo]));
+            const mergedTurns = new Set();
+            const result = [];
+
+            orderedItems.forEach(memory => {
+                const turn = Number(memory?.turn) || 0;
+                if (!repeatedTurns.has(turn)) {
+                    result.push(memory);
+                    return;
+                }
+
+                if (mergedTurns.has(turn)) return;
+                mergedTurns.add(turn);
+
+                const turnMemories = memoriesByTurn.get(turn) || [memory];
+                const fullTurnText = buildFullTurnMemoryText(turnsByNumber.get(turn))
+                    || buildMergedVectorMemoryFallbackText(turnMemories);
+                if (!fullTurnText) return;
+
+                const bestMemory = [...turnMemories].sort((a, b) => (b.vectorScore || 0) - (a.vectorScore || 0))[0] || memory;
+                const sequenceValues = turnMemories
+                    .map(item => Number(item.sequence) || 0)
+                    .filter(sequence => sequence > 0);
+                result.push({
+                    ...bestMemory,
+                    paragraph: fullTurnText,
+                    summary: fullTurnText,
+                    sourceText: fullTurnText,
+                    sequence: sequenceValues.length ? Math.min(...sequenceValues) : bestMemory.sequence,
+                    vectorMergedTurn: true
+                });
+            });
+
+            return result;
+        };
+
+        const getRetainedRecentMemoryTurns = (messages) => {
+            const keepFloors = Number(memorySettings.keepFloors) || 0;
+            if (keepFloors <= 0 || !Array.isArray(messages) || messages.length === 0) return new Set();
+
+            const retainedStartIndex = Math.max(0, messages.length - keepFloors);
+            const snapshot = buildConversationTurnSnapshot(messages, { alreadyPostprocessed: true });
+            const retainedTurns = new Set();
+
+            snapshot.turns.forEach(turnInfo => {
+                const turn = Number(turnInfo.turn) || 0;
+                if (turn <= 0) return;
+                const messageIndexes = Array.isArray(turnInfo.messageIndexes) ? turnInfo.messageIndexes : [];
+                if (messageIndexes.some(messageIndex => messageIndex >= retainedStartIndex)) {
+                    retainedTurns.add(turn);
+                }
+            });
+
+            return retainedTurns;
+        };
+
         const yieldToBrowser = () => new Promise(resolve => setTimeout(resolve, 0));
 
-        const selectVectorMemoriesForContext = async (signal) => {
-            const vectorMemories = memories.value.filter(isEnabledVectorMemory);
+        const selectVectorMemoriesForContext = async (signal, options = {}) => {
+            const excludedTurns = options.excludedTurns instanceof Set
+                ? options.excludedTurns
+                : new Set(Array.isArray(options.excludedTurns) ? options.excludedTurns : []);
+            const vectorMemories = memories.value
+                .filter(isEnabledVectorMemory)
+                .filter(memory => {
+                    const turn = Number(memory.turn) || 0;
+                    return turn <= 0 || !excludedTurns.has(turn);
+                });
 
             if (vectorMemories.length === 0) return [];
 
@@ -6377,6 +6502,8 @@ ${content}
 
 <生成格式>
 image###生成的提示词###
+</生成格式>
+</Tag_智能调整>
 
 特别提示：出现user或主角参与的情况(如被口、手交），禁止出现主角的人物形象(脸部，头部）！必须使用第一视角(POV）相关提示词！且要作为Character  Prompt添加，禁止出现角色卡和角色名字(包括英文和拼音），中文和{{user}}是明令禁止的，且一定要保持同一人物在上下文中的形象一致性，不要丢失人物特性(如有异色瞳特征人物），涉及人物常见特征(如发色，瞳孔颜色等）的提示词请增加权重\n</auto_image_gen>`,
                 constant: true,
@@ -7491,7 +7618,9 @@ image###生成的提示词###
 - “绝不编写 {{user}} 的发言或行动，绝不替名为 {{user}} 的角色做决定或采取行动。绝不扮演角色 {{user}}”
 - “角色的回应应侧重于描述和塑造 {{char}} 的行为，将 {{user}} 的行动留给 {{user}} 自己，将{{user}}的回应留给{{user}} 控制。”
 - “禁止时间跳跃”“禁止快速推进剧情”
-(严禁重复、补充或重述{{user}}的输入内容。禁止以任何方式补充或转述 {{user}} 的输入。)\n</anti_robbery>`;
+(严禁重复、补充或重述{{user}}的输入内容。禁止以任何方式补充或转述 {{user}} 的输入。)
+</Rule>
+</anti_robbery>`;
             const existingAntiRobberyPreset = presets.value.find(p => p.name === antiRobberyPresetName);
 
             if (!existingAntiRobberyPreset) {
