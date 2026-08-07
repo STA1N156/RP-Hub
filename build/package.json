@@ -1,0 +1,20 @@
+{
+  "name": "build",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "autoprefixer": "^10.5.4",
+    "daisyui": "^4.7.2",
+    "esbuild": "^0.28.1",
+    "postcss": "^8.5.25",
+    "tailwindcss": "^3.4.17"
+  }
+}

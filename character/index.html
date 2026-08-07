@@ -8,11 +8,10 @@
     <title>角色卡工坊</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="../assets/css/tailwind-char.css">
     <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css" rel="stylesheet" type="text/css" />
-    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/localforage@1.10.0/dist/localforage.min.js"></script>
+    <script src="../assets/vendor/vue.global.prod.js?v=1.7.9-opt1"></script>
+    <script src="../assets/vendor/localforage.min.js?v=1.7.9-opt1"></script>
     <script src="../assets/js/card-utils.js"></script>
     <script src="../assets/js/ui-select.js"></script>
     <style>
@@ -294,26 +293,6 @@
             }
         }
     </style>
-    <script>
-        tailwind.config = {
-            future: {
-                hoverOnlyWhenSupported: true,
-            },
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['var(--app-font-family)', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Microsoft YaHei', 'Noto Sans SC', 'Arial', 'sans-serif'],
-                        serif: ['var(--app-font-serif)', 'Lora', 'Noto Serif SC', 'Source Han Serif SC', 'Source Han Serif CN', 'STSong', 'SimSun', 'Georgia', 'Cambria', 'Times New Roman', 'Times', 'serif']
-                    },
-                    colors: {
-                        primary: '#65c3c8',
-                        secondary: '#ef9fbc',
-                        accent: '#eeaf3a',
-                    }
-                }
-            }
-        }
-    </script>
 </head>
 
 <body class="flex flex-col overflow-hidden bg-base-200/30">
@@ -2329,7 +2308,7 @@
                         textContent = fullText.replace(htmlMatch[0], '').trim();
                     } else {
                         // 如果没有检测到 HTML 块，则提供一个基础的 HTML 结构，以便注入样式和脚本并显示正文
-                        uiHTML = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"><script src="https://cdn.tailwindcss.com"></` + `script></head><body class="bg-base-100 p-4"></body></html>`;
+                        uiHTML = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"><style>body{margin:0;padding:1rem;background:#f2f4f6;font-family:-apple-system,system-ui,sans-serif;}</style></head><body></body></html>`;
                         textContent = fullText;
                     }
 
