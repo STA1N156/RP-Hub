@@ -6455,6 +6455,50 @@ ${content}
             };
 
             try {
+                        // 流式节流状态（提升到 try 作用域：abort/异常时也能 flush 残余内容）
+                        let pendingNativeReasoning = '';
+                        let nativeReasoningFlushRaf = null;
+                        let pendingNativeContent = '';
+                        let nativeContentFlushTimer = null;
+                        const applyPendingNativeReasoning = () => {
+                            if (!assistantMessage || !pendingNativeReasoning) return;
+                            appendAssistantReasoning(assistantMessage, pendingNativeReasoning);
+                            pendingNativeReasoning = '';
+                        };
+                        const scheduleNativeReasoningFlush = () => {
+                            if (!assistantMessage || !pendingNativeReasoning || nativeReasoningFlushRaf) return;
+                            nativeReasoningFlushRaf = requestAnimationFrame(() => {
+                                nativeReasoningFlushRaf = null;
+                                applyPendingNativeReasoning();
+                            });
+                        };
+                        const flushNativeReasoning = () => {
+                            if (nativeReasoningFlushRaf) {
+                                cancelAnimationFrame(nativeReasoningFlushRaf);
+                                nativeReasoningFlushRaf = null;
+                            }
+                            applyPendingNativeReasoning();
+                        };
+                        // 正文内容节流：chunk 累积 + 100ms 窗口批量提交，避免每 chunk 全量重渲染 markdown（O(n²) 热点）
+                        const applyPendingNativeContent = () => {
+                            if (!assistantMessage || !pendingNativeContent) return;
+                            appendAssistantText(assistantMessage, 'content', pendingNativeContent);
+                            pendingNativeContent = '';
+                        };
+                        const scheduleNativeContentFlush = () => {
+                            if (nativeContentFlushTimer) return;
+                            nativeContentFlushTimer = setTimeout(() => {
+                                nativeContentFlushTimer = null;
+                                applyPendingNativeContent();
+                            }, 100);
+                        };
+                        const flushNativeContent = () => {
+                            if (nativeContentFlushTimer) {
+                                clearTimeout(nativeContentFlushTimer);
+                                nativeContentFlushTimer = null;
+                            }
+                            applyPendingNativeContent();
+                        };
                         const url = getApiEndpoint('chat/completions');
                         const response = await fetch(url, {
                             method: 'POST',
@@ -6501,28 +6545,6 @@ ${content}
                             const reader = response.body.getReader();
                             const decoder = new TextDecoder();
                             let buffer = '';
-                            let pendingNativeReasoning = '';
-                            let nativeReasoningFlushRaf = null;
-                            const applyPendingNativeReasoning = () => {
-                                if (!assistantMessage || !pendingNativeReasoning) return;
-                                appendAssistantReasoning(assistantMessage, pendingNativeReasoning);
-                                pendingNativeReasoning = '';
-                            };
-                            const scheduleNativeReasoningFlush = () => {
-                                if (!assistantMessage || !pendingNativeReasoning || nativeReasoningFlushRaf) return;
-                                nativeReasoningFlushRaf = requestAnimationFrame(() => {
-                                    nativeReasoningFlushRaf = null;
-                                    applyPendingNativeReasoning();
-                                });
-                            };
-                            const flushNativeReasoning = () => {
-                                if (!assistantMessage || !pendingNativeReasoning) return;
-                                if (nativeReasoningFlushRaf) {
-                                    cancelAnimationFrame(nativeReasoningFlushRaf);
-                                    nativeReasoningFlushRaf = null;
-                                }
-                                applyPendingNativeReasoning();
-                            };
 
                             while (true) {
                                 const { done, value } = await reader.read();
@@ -6581,7 +6603,9 @@ ${content}
 
                                                 if (content && !seededContent) {
                                                     flushNativeReasoning();
-                                                    appendAssistantText(assistantMessage, 'content', content);
+                                                    // 节流：累积后 RAF 批量提交
+                                                    pendingNativeContent += content;
+                                                    scheduleNativeContentFlush();
                                                     isThinking.value = false;
                                                     collapseNativeReasoning(assistantMessage);
                                                 }
@@ -6596,6 +6620,7 @@ ${content}
                                 }
                             }
                             flushNativeReasoning();
+                            flushNativeContent();
                         } else {
                             // Non-streaming response handling
                             // Compatibility Fix: Some APIs force return SSE format even if stream=false
@@ -6721,6 +6746,9 @@ ${content}
                 if (error.name === 'AbortError') {
                     _wasCancelled = true;
                     showToast('生成已中止', 'info');
+                    // 先提交节流中的残余内容，避免中止时丢字
+                    flushNativeContent();
+                    flushNativeReasoning();
                     const wasReceiving = isReceiving.value;
                     isGenerating.value = false;
                     isRemoteGenerating.value = false;
