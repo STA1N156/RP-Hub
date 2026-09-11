@@ -713,19 +713,15 @@ ${closingInstruction}
 
 // --- Update announcement (keep this section at the bottom) ---
 window.RPHubLatestUpdate = Object.freeze({
-    id: 10207,
+    id: 10208,
     title: '网站公告',
     content: `
-### RP-Hub 1.9.3
+### RP-Hub 1.9.4
 
-- 角色卡工坊与万相广场新增一键导入功能
-- 支持角色卡工坊抗截断模式
-- 大幅优化了Diff匹配与智能修改的成功率
-- 全面焕新角色卡管理页面
-- 优化了开屏动画
-- 优化了剧情UI面板的出现时机
-- 修复了沉浸模式下宽度异常的问题
+- 抗截断模式支持开启COT
+- 解决了Gemini模型部分提示词被标记的情况
+- 适配了Gemini模型新缓存机制
 
-#### 更新时间：09/08/15:30
+#### 更新时间：09/11/12:18
     `
 });
