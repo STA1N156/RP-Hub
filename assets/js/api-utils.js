@@ -17,6 +17,35 @@
     const readTextContent = value => Array.isArray(value)
         ? value.filter(part => !isNativeReasoningPart(part)).map(part => part?.text || part?.content || '').join('')
         : String(value || '');
+    // 仅用于日志：合并响应字段，不提取正文或解码工具参数。
+    const mergeResponseDelta = (previous = {}, delta = {}, append = true) => {
+        const merged = { ...previous };
+        for (const [key, value] of Object.entries(delta)) {
+            if (['__proto__', 'constructor', 'prototype'].includes(key)) continue;
+            if (Array.isArray(value)) {
+                const items = Array.isArray(merged[key]) ? [...merged[key]] : [];
+                if (!append) {
+                    merged[key] = value.length ? value : items;
+                    continue;
+                }
+                value.forEach((part, position) => {
+                    const index = part?.index ?? (key === 'tool_calls' ? position : null);
+                    if (Number.isInteger(index) && index >= 0) items[index] = mergeResponseDelta(items[index], part);
+                    else items.push(part);
+                });
+                merged[key] = items;
+            } else if (value && typeof value === 'object') {
+                merged[key] = mergeResponseDelta(merged[key], value, append);
+            } else if (typeof value === 'string' && /^(content|text|reasoning_content|reasoning|thinking|thinking_content|thought|thoughts|reasoning_text|refusal|arguments|name)$/.test(key)) {
+                if (value || merged[key] === undefined) {
+                    merged[key] = (append && typeof merged[key] === 'string' ? merged[key] : '') + value;
+                }
+            } else if (value !== null || merged[key] === undefined) {
+                merged[key] = value;
+            }
+        }
+        return merged;
+    };
     const replyTool = {
         type: 'function',
         function: {
@@ -54,6 +83,7 @@
             touch();
             if (!response.ok) {
                 const text = await response.text();
+                options.onErrorResponse?.(text);
                 let payload;
                 try { payload = JSON.parse(text); } catch (_) { }
                 throw new Error(extractApiErrorMessage(payload, response.status) || formatApiErrorMessage(response.status, text));
@@ -76,6 +106,9 @@
 
     const requestChatCompletionOnce = async (options, attempt) => {
         const startedAt = Date.now();
+        const logResponse = options.logResponse || options.replyInTool;
+        let rawResponse = '';
+        let streamResponse = null;
         const result = { content: '', reasoning: '', toolCalls: [], assistantMessage: null, usage: null, finishReason: null, isStream: false };
         let receivedPayload = false;
         let pendingContent = '';
@@ -184,6 +217,21 @@
             return result;
         };
         const accept = data => {
+            if (streamResponse) {
+                const { choices = [], ...metadata } = data;
+                streamResponse = mergeResponseDelta(streamResponse, metadata);
+                choices.forEach((choice, position) => {
+                    const { delta, message, ...fields } = choice;
+                    const index = choice.index ?? position;
+                    const previous = streamResponse.choices[index] || {};
+                    streamResponse.choices[index] = {
+                        ...mergeResponseDelta(previous, fields),
+                        // 完整 message 不是增量；补齐已有字段，不能覆盖此前的思考或重复拼接正文。
+                        message: delta ? mergeResponseDelta(previous.message, delta)
+                            : message ? mergeResponseDelta(previous.message, message, false) : previous.message
+                    };
+                });
+            }
             receivedPayload = true;
             result.usage = getApiUsagePayload(data) || result.usage;
             const choice = data.choices?.[0] || {};
@@ -226,7 +274,9 @@
         };
         try {
             const tools = [...(options.tools || []), ...(options.replyInTool && !options.requireTool ? [replyTool] : [])];
-            return await withApiResponse({ ...options, body: {
+            return await withApiResponse({ ...options, onErrorResponse: text => {
+                if (logResponse) rawResponse = text;
+            }, body: {
                 model: options.model, messages: options.messages, temperature: options.temperature,
                 ...(options.reasoningEffort ? { reasoning_effort: options.reasoningEffort } : {}),
                 ...(tools.length ? {
@@ -243,10 +293,12 @@
                 if (!eventStream) {
                     rawText = await response.text();
                     if (!/^\s*(?:data:|:)/.test(rawText)) {
+                        if (logResponse) rawResponse = rawText;
                         accept(parsePayload(rawText, response.status));
                         return finish();
                     }
                 }
+                if (logResponse) streamResponse = { choices: [] };
                 result.isStream = !!options.stream;
                 let buffer = '';
                 let eventLines = [];
@@ -321,9 +373,9 @@
             failure = error;
             throw error;
         } finally {
-            if (options.replyInTool) console.info('[Gemini抗截断]', {
+            if (logResponse) console.info(options.logResponse ? '[模型输出][最新一次]' : '[Gemini抗截断]', {
                 模型: options.model, 次数: attempt, 结果: failure ? failure.message : '成功',
-                结束原因: result.finishReason, 正文全文: result.content, 普通正文全文: plainContent
+                响应体: rawResponse || (streamResponse ? JSON.stringify(streamResponse) : '')
             });
             // 在业务层 JSON/模板校验之前记账；部分流式响应后中止也不会漏掉已返回的用量。
             if (receivedPayload) options.onUsage?.(result.usage, {
