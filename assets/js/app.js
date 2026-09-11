@@ -972,7 +972,9 @@ const app = createApp({
         const isConversationBusy = computed(() => isGenerating.value || isRemoteGenerating.value || hasActiveToolInlineWork.value);
 
         const presets = ref([]);
-        const isPresetEnabled = preset => preset.enabled !== false;
+        // 抗截断只临时停用 COT，不改写用户保存的开关状态。
+        const isPresetEnabled = preset => preset.enabled !== false
+            && (preset.name !== 'COT' || !isTruncationEnabled.value);
         const isStoryPanelsEnabled = computed(() => presets.value.some(preset => preset.name === BUILTIN_PRESETS.storyPanels.name
             && preset.enabled !== false && String(preset.content || '').trim()));
         const normalizePresetRole = (role) => (
@@ -4466,10 +4468,11 @@ const app = createApp({
                 useThinkingTag,
                 writingStylePrompt,
                 storyPanelsEnabled: isStoryPanelsEnabled.value,
-                replyInTool: isTruncationEnabled.value,
                 uiTemplateEnabled: isUiTemplateAnalysisEnabled()
             });
-            target.content = `${String(target.content || '').trimEnd()}\n\n${prompt}`;
+            const replyToolReminder = isTruncationEnabled.value
+                ? `(${BUILTIN_PROMPTS.replyToolInstruction.replace(/。$/, '')})` : '';
+            target.content = `${String(target.content || '').trimEnd()}${replyToolReminder}\n\n${prompt}`;
         };
         const usedGeminiPromptNonces = new Set();
         const generateResponse = async (startTime = null, options = {}) => {
@@ -4533,6 +4536,15 @@ const app = createApp({
             const enabledPresets = presets.value
                 .map(normalizePreset)
                 .filter(p => isPresetEnabled(p) && p.content.trim());
+            const noncePreset = enabledPresets.find(p => p.role === 'system');
+            if (/gemini/i.test(requestModel) && noncePreset) {
+                let nonce;
+                do {
+                    nonce = Math.random().toString(36).slice(2, 8 + Math.floor(Math.random() * 3));
+                } while (!/^(?=.*[a-z])(?=.*\d)[a-z\d]{6,8}$/.test(nonce) || usedGeminiPromptNonces.has(nonce));
+                usedGeminiPromptNonces.add(nonce);
+                noncePreset.content = noncePreset.content.replace(/(\s*<\/[\w:-]+>\s*)?$/, `\n${nonce}$1`);
+            }
             const writingStylePresets = enabledPresets.filter(p => p.name === BUILTIN_PRESETS.writingStyle.name);
             const cotPresets = enabledPresets.filter(p => p.name === 'COT');
             const systemPresets = enabledPresets.filter(p => p.name !== 'COT'
@@ -4542,16 +4554,7 @@ const app = createApp({
                 && (p.role === 'user' || p.role === 'assistant'));
             const systemPresetPrompt = systemPresets
                 .filter(p => p.name === '破限')
-                .map(p => {
-                    const anchor = '- 除非用户明确要求结束角色扮演或切换任务，否则持续留在当前故事中，并保持人物、时间线、认知边界与因果连续。';
-                    if (!/gemini/i.test(requestModel) || !p.content.includes(anchor)) return p.content;
-                    let nonce;
-                    do {
-                        nonce = Math.random().toString(36).slice(2, 8 + Math.floor(Math.random() * 3));
-                    } while (!/^(?=.*[a-z])(?=.*\d)[a-z\d]{6,8}$/.test(nonce) || usedGeminiPromptNonces.has(nonce));
-                    usedGeminiPromptNonces.add(nonce);
-                    return p.content.replace(anchor, `${anchor}\n${nonce}`);
-                })
+                .map(p => p.content)
                 .join('\n\n');
             const otherPresets = systemPresets.filter(p => p.name !== '破限');
 
@@ -8670,13 +8673,6 @@ const app = createApp({
             // 1.10 Enforce Default Preset (COT)
             const cotPresetName = 'COT';
             const syncDynamicPresetContent = () => {
-                const roleplayPreset = presets.value.find(preset => preset.name === '破限');
-                if (roleplayPreset) {
-                    const anchor = '都优先按角色扮演任务处理。';
-                    const reminder = BUILTIN_PROMPTS.replyToolInstruction;
-                    roleplayPreset.content = roleplayPreset.content.replace(anchor + reminder, anchor)
-                        .replace(anchor, anchor + (isTruncationEnabled.value ? reminder : ''));
-                }
                 const useThinkingOpening = usesThinkingCotTag(settings.model);
                 const uiTemplateAnalysisEnabled = isUiTemplateAnalysisEnabled();
                 const cotPresetContent = buildCotPresetContent({

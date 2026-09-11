@@ -1288,6 +1288,15 @@
             padding-bottom: 0.55rem;
         }
 
+        .chat-quick-panel .settings-toggle--compact {
+            position: relative;
+        }
+
+        .chat-quick-panel .settings-toggle-input:checked + .settings-toggle--compact::after {
+            left: calc(100% - 1.1875rem);
+            transform: none;
+        }
+
         .chat-quick-panel .compact-range {
             height: 20px;
             margin: 0;

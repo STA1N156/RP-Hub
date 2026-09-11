@@ -2016,8 +2016,11 @@
                             </div>
                         </div>
                         <div class="flex items-center space-x-4 flex-shrink-0">
-                            <label class="relative inline-flex items-center cursor-pointer">
+                            <label class="relative inline-flex items-center"
+                                :class="preset.name === 'COT' && isTruncationEnabled ? 'cursor-not-allowed' : 'cursor-pointer'"
+                                :title="preset.name === 'COT' && isTruncationEnabled ? 'Gemini抗截断已临时关闭 COT，关闭抗截断或切换模型后恢复原设置' : null">
                                 <input type="checkbox" :checked="isPresetEnabled(preset)"
+                                    :disabled="preset.name === 'COT' && isTruncationEnabled"
                                     @change="preset.enabled = $event.target.checked" class="settings-toggle-input sr-only">
                                 <div class="settings-toggle"></div>
                             </label>
