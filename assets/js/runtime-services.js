@@ -4,7 +4,10 @@
 (function () {
     const MAX_CACHE_SIZE = 2000;
 
-    const createMessageRenderer = ({ processRegex, replaceUserPlaceholder, createExecutableHtmlIframe, marked, DOMPurify }) => {
+    const createMessageRenderer = ({
+        processRegex, replaceUserPlaceholder, createExecutableHtmlIframe, marked, DOMPurify,
+        getMemoryCitationLabel = () => '', getMemoryCitationVersion = () => ''
+    }) => {
         const renderedCache = new Map();
         const frameDetectionCache = new Map();
 
@@ -99,15 +102,115 @@
             return modified;
         };
 
+        // 正文里的记忆引用 [M12]：编号变成可点的小角标，并给它前面那句话加下划线。
+        // 往回找到句末标点、上一处引用或段落开头为止；跨格式的长句只会划到能可靠切开的位置。
+        const MEMORY_CITATION_PATTERN = /((?:\[M\d{1,6}\])+)/;
+        // 引号里的句末标点后面紧跟“她说”之类的叙述时不算断句，整句一起划线。
+        const SENTENCE_END_PATTERN = /[。！？!?…]+(?![。！？!?…])(?:[”’」』"']+(?=$|[\s“‘「『"'])|(?![”’」』"']))\s*|\n+/g;
+        const TRAILING_PUNCTUATION_PATTERN = /[\s。！？!?…，,；;：:”’」』）)"']+$/;
+        const underlineCitedSentence = (cite) => {
+            const nodes = [];
+            let following = '';
+            for (let node = cite.previousSibling; node; node = node.previousSibling) {
+                if (node.nodeType === 1 && node.matches('.memory-cite, .memory-cite-text, br, img, iframe')) break;
+                const text = node.textContent;
+                // 句子自己的句末标点紧挨着引用，不能当成上一句的结尾；带上后面已划进来的文字一起判断，
+                // 正则给引语单独加了样式时，问号和标签外的引号、叙述仍连成一句。
+                const body = nodes.length ? text : text.replace(TRAILING_PUNCTUATION_PATTERN, '');
+                let boundary = -1;
+                for (const match of (body + following).matchAll(SENTENCE_END_PATTERN)) {
+                    if (match.index < body.length) boundary = Math.min(match.index + match[0].length, body.length);
+                }
+                if (boundary < 0) {
+                    nodes.unshift(node);
+                    following = text + following;
+                    continue;
+                }
+                if (node.nodeType === 3 && boundary < text.length) nodes.unshift(node.splitText(boundary));
+                else if (node.nodeType === 1 && !nodes.length) nodes.unshift(node);
+                break;
+            }
+            if (!nodes.some(node => node.textContent.trim())) return;
+            const span = cite.ownerDocument.createElement('span');
+            span.className = 'memory-cite-text';
+            span.dataset.memoryNos = cite.dataset.memoryNos;
+            nodes[0].before(span);
+            span.append(...nodes);
+        };
+        const decorateMemoryCitations = (documentNode) => {
+            const textNodes = [];
+            const walker = documentNode.createTreeWalker(documentNode.body, NodeFilter.SHOW_TEXT);
+            while (walker.nextNode()) {
+                const node = walker.currentNode;
+                if (MEMORY_CITATION_PATTERN.test(node.nodeValue) && !node.parentElement?.closest('pre, code, a, button, script, style, textarea')) textNodes.push(node);
+            }
+            textNodes.forEach(node => {
+                const fragment = documentNode.createDocumentFragment();
+                node.nodeValue.split(MEMORY_CITATION_PATTERN).forEach((part, index) => {
+                    if (index % 2 === 0) {
+                        if (part) fragment.append(part);
+                        return;
+                    }
+                    const numbers = part.match(/\d+/g);
+                    const cite = documentNode.createElement('button');
+                    cite.type = 'button';
+                    cite.className = 'memory-cite';
+                    cite.dataset.memoryNos = numbers.join(',');
+                    // 角标显示记忆对应的轮次：单轮如 3，合并总结如 1-5；找不到的记忆显示问号。
+                    const labels = numbers.map(no => getMemoryCitationLabel(Number(no)) || '?');
+                    cite.setAttribute('aria-label', `查看判断依据：第 ${labels.join('、')} 轮`);
+                    cite.textContent = labels.join(',');
+                    fragment.append(cite);
+                });
+                node.replaceWith(fragment);
+            });
+            documentNode.querySelectorAll('.memory-cite').forEach(underlineCitedSentence);
+            return textNodes.length > 0;
+        };
+        // 以 HTML 开头的回复不经过 Markdown，正文文字直接挂在最外层；消息容器会把最外层的每个子元素排成单独一块，
+        // 所以把带引用的那段行内内容包进段落，角标才会跟在句末。
+        const BLOCK_TAG_PATTERN = /^(ADDRESS|ARTICLE|ASIDE|BLOCKQUOTE|DETAILS|DIV|DL|FIELDSET|FIGURE|FOOTER|FORM|H[1-6]|HEADER|HR|IFRAME|LI|MAIN|NAV|OL|P|PRE|SCRIPT|SECTION|STYLE|TABLE|UL)$/;
+        const wrapLooseCitationText = (documentNode) => {
+            const body = documentNode.body;
+            const isInline = node => node && (node.nodeType === 3 || (node.nodeType === 1 && !BLOCK_TAG_PATTERN.test(node.tagName)));
+            [...body.childNodes].forEach(node => {
+                if (node.parentNode !== body || node.nodeType !== 3 || !MEMORY_CITATION_PATTERN.test(node.nodeValue)) return;
+                let start = node;
+                let end = node;
+                while (isInline(start.previousSibling)) start = start.previousSibling;
+                while (isInline(end.nextSibling)) end = end.nextSibling;
+                const paragraph = documentNode.createElement('p');
+                start.before(paragraph);
+                for (let current = start, next; current; current = next) {
+                    next = current === end ? null : current.nextSibling;
+                    paragraph.append(current);
+                }
+            });
+        };
+        // 正则替换成 HTML、或本身以 HTML 开头的回复走单独的渲染分支，也要补上记忆引用。
+        const decorateHtml = (html, role) => {
+            if (role !== 'assistant' || !/\[M\d/.test(html)) return html;
+            const documentNode = new DOMParser().parseFromString(html, 'text/html');
+            wrapLooseCitationText(documentNode);
+            return decorateMemoryCitations(documentNode) ? documentNode.body.innerHTML : html;
+        };
+        // 美化正则可能会改写方括号（例如把 [状态] 变成标签），先把引用换成正则碰不到的占位符，替换完再还原。
+        const protectCitations = text => text.replace(/\[M(\d{1,6})\]/g, '\uE000M$1\uE001');
+        const restoreCitations = text => text.replace(/\uE000M(\d{1,6})\uE001/g, '[M$1]');
+
         const renderMarkdown = (text, role = 'assistant', skipRegex = false, allowHtml = true) => {
             if (!text) return '';
-            const cacheKey = `${role}_${skipRegex}_${allowHtml}_${text}`;
+            // 记忆的轮次会随删改楼层变化，带引用的回复按当前对照表缓存，轮次变了角标跟着更新。
+            const citationVersion = role === 'assistant' && text.includes('[M') ? getMemoryCitationVersion() : '';
+            const cacheKey = `${role}_${skipRegex}_${allowHtml}_${citationVersion}_${text}`;
             if (renderedCache.has(cacheKey)) return renderedCache.get(cacheKey);
 
-            let processed = applyDisplayRegex(text, role, skipRegex);
+            let processed = role === 'assistant'
+                ? restoreCitations(applyDisplayRegex(protectCitations(text), role, skipRegex))
+                : applyDisplayRegex(text, role, skipRegex);
             if (!allowHtml) {
                 const html = DOMPurify.sanitize(marked.parse(processed, { renderer: markdownOnlyRenderer }));
-                return cacheValue(renderedCache, cacheKey, html);
+                return cacheValue(renderedCache, cacheKey, decorateHtml(html, role));
             }
             const trimmed = processed.trim();
             const htmlMatch = trimmed.match(/(<!doctype html>|<html\b[^>]*>)/i);
@@ -128,16 +231,16 @@
                 container.style.marginBottom = '-1px';
                 container.appendChild(createIframe(htmlContent));
                 const result = [
-                    preText.trim() ? sanitizeMarkdown(preText) : '',
+                    preText.trim() ? decorateHtml(sanitizeMarkdown(preText), role) : '',
                     container.outerHTML,
-                    postText.trim() ? sanitizeMarkdown(postText) : ''
+                    postText.trim() ? decorateHtml(sanitizeMarkdown(postText), role) : ''
                 ].join('');
                 return cacheValue(renderedCache, cacheKey, result);
             }
 
             if (/^\s*<(div|table|section|article|aside|header|footer|style|script)/i.test(trimmed)
                 && !trimmed.includes('```')) {
-                return cacheValue(renderedCache, cacheKey, DOMPurify.sanitize(processed, cleanConfig));
+                return cacheValue(renderedCache, cacheKey, decorateHtml(DOMPurify.sanitize(processed, cleanConfig), role));
             }
 
             const lowerTrimmed = trimmed.toLowerCase();
@@ -155,7 +258,8 @@
                 const codeBlocksChanged = replaceHtmlCodeBlocks(documentNode);
                 const paragraphsChanged = replaceEscapedHtmlParagraphs(documentNode);
                 const panelsChanged = replaceScriptedPanels(documentNode);
-                const modified = codeBlocksChanged || paragraphsChanged || panelsChanged;
+                const citationsChanged = role === 'assistant' && decorateMemoryCitations(documentNode);
+                const modified = codeBlocksChanged || paragraphsChanged || panelsChanged || citationsChanged;
                 if (modified) return cacheValue(renderedCache, cacheKey, documentNode.body.innerHTML);
             } catch (error) {
                 console.error('Error rendering HTML preview:', error);
@@ -163,7 +267,7 @@
             return cacheValue(renderedCache, cacheKey, html);
         };
 
-        return { clearCaches, contentUsesHtmlFrame, renderMarkdown };
+        return { clearCaches, contentUsesHtmlFrame, decorateMemoryCitations, renderMarkdown };
     };
 
     window.RPHubMessageRenderer = Object.freeze({ createMessageRenderer });
@@ -339,8 +443,8 @@
             formatLatestTokenCount,
             formatTokenAggregate: (value, reports) => {
                 if (reports <= 0 || value <= 0) return '0';
-                if (value >= 100000000) return `${Number((value / 100000000).toFixed(2))}亿`;
-                if (value >= 10000) return `${Number((value / 10000).toFixed(2))}万`;
+                if (value >= 1e9) return `${Number((value / 1e9).toFixed(2))}B`;
+                if (value >= 1e6) return `${Number((value / 1e6).toFixed(2))}M`;
                 return value.toLocaleString();
             },
             formatTokenCount: (value) => Number.isFinite(value) ? value.toLocaleString() : '0',

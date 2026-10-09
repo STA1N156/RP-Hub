@@ -358,7 +358,7 @@
                                             </div>
                                         </div>
 
-                                        <div v-else class="message-content-wrapper"
+                                        <div v-else class="message-content-wrapper" @click="openMemoryCitation"
                                             :class="{'w-full': messageUsesWideLayout(msg), 'has-user-images': msg.role === 'user' && Array.isArray(msg.imageAttachments) && msg.imageAttachments.length}">
                                             <div v-if="msg.role === 'user' && Array.isArray(msg.imageAttachments) && msg.imageAttachments.length"
                                                 :class="['grid gap-1.5 p-1', msg.imageAttachments.length === 1 ? 'grid-cols-1 w-fit' : 'grid-cols-2 w-[min(24rem,78vw)]']">
@@ -826,7 +826,7 @@
                                 </button>
                                 <!-- Context Viewer Button -->
                                 <button @click="showContextViewerModal = true" class="island-button"
-                                    title="查看真实上下文请求">
+                                    title="上下文查看器">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                             d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
@@ -2516,7 +2516,9 @@
             @update-field="editingWorldInfo.data[$event.field] = $event.value"
             @update-keys="updateEditingWorldInfoKeys"></world-info-editor-modal>
 
-        <context-viewer-modal :show="showContextViewerModal" :floors="lastContextFloorCount"
+        <memory-citation-modal :items="memoryCitationItems" @close="memoryCitationNos = []"></memory-citation-modal>
+
+        <context-viewer-modal :show="showContextViewerModal" :floors="chatRoundStats.floors"
             :total-length="lastContextTotalLength" :world-infos="lastTriggeredWorldInfos"
             :messages="lastContextMessages" @close="showContextViewerModal = false"></context-viewer-modal>
 

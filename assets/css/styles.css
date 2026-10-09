@@ -1047,9 +1047,14 @@ label:is(:active, :focus-within) .settings-toggle::after { transition: transform
 .memory-browse__head span { color: var(--c-text-3); font-size: 0.8125rem; white-space: nowrap; }
 .memory-browse__head b { margin-left: 0.25rem; color: var(--c-text); font-weight: 600; font-variant-numeric: tabular-nums; }
 .memory-compression { --saved: repeating-linear-gradient(-45deg, rgb(var(--gray-400) / 0.4) 0 3px, rgb(var(--gray-400) / 0.16) 3px 6px); margin-top: 0.75rem; font-size: 0.8125rem; font-variant-numeric: tabular-nums; }
-.memory-compression__track { height: 0.625rem; overflow: hidden; border-radius: 999px; background: var(--saved); }
-/* A fully rounded fill lies over the stripes, so the hand-over is a soft cap rather than a cut. */
-.memory-compression__fill { width: var(--summary-retained); height: 100%; border-radius: 999px; background: rgb(var(--primary-500)); transition: width var(--dur-4) var(--ease-out); }
+/* Short ticks stand out above and below the bar where the compressed text ends and where the original ends. */
+.memory-compression__track { position: relative; height: 0.625rem; border-radius: 999px 0 0 999px; background: var(--saved); }
+.memory-compression__track::after,
+.memory-compression__fill::after { content: ''; position: absolute; top: 50%; right: 0; width: 2px; height: 1rem; border-radius: 1px; transform: translate(50%, -50%); }
+.memory-compression__track::after { background: rgb(var(--gray-400)); }
+/* The fill and the stripes both end square against their ticks; only the start of the bar is rounded. */
+.memory-compression__fill { position: relative; z-index: 1; width: var(--summary-retained); height: 100%; border-radius: 999px 0 0 999px; background: rgb(var(--primary-500)); transition: width var(--dur-4) var(--ease-out); }
+.memory-compression__fill::after { background: rgb(var(--primary-600)); }
 .memory-compression__labels { display: flex; align-items: center; gap: 1rem; margin-top: 0.625rem; color: var(--c-text-3); white-space: nowrap; }
 .memory-compression__labels span:last-child { margin-left: auto; }
 .memory-compression__labels strong { color: var(--c-text); font-weight: 600; }
@@ -1089,6 +1094,46 @@ label:is(:active, :focus-within) .settings-toggle::after { transition: transform
 .memory-item__retry:hover:not(:disabled) { background: rgb(var(--gray-500) / 0.12); color: var(--c-accent-text); }
 .memory-item__retry:disabled { opacity: 0.4; cursor: not-allowed; }
 .memory-item__text { margin-top: 0.25rem; color: var(--c-text-2); font-size: 0.875rem; line-height: 1.75; white-space: pre-line; overflow-wrap: anywhere; }
+
+/* Memory citations in replies: the sentence gets a dotted underline and ends in a small number chip;
+   either opens the summary the model leaned on. */
+.memory-cite-text {
+    text-decoration: underline dotted rgb(var(--primary-400));
+    text-decoration-thickness: 1.5px;
+    text-underline-offset: 0.3em;
+    cursor: pointer;
+}
+.memory-cite {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.4em;
+    height: 1.4em;
+    margin: 0 0.15em;
+    padding: 0 0.35em;
+    border-radius: 999px;
+    background: rgb(var(--primary-500) / 0.12);
+    color: var(--c-accent-text);
+    font-family: var(--font-sans);
+    font-size: 0.68em;
+    font-weight: 700;
+    line-height: 1;
+    vertical-align: 0.35em;
+    cursor: pointer;
+    transition: background-color var(--dur-2) ease;
+}
+.memory-cite:focus-visible { outline: 2px solid rgb(var(--primary-400)); outline-offset: 1px; }
+@media (hover: hover) and (pointer: fine) {
+    .memory-cite:hover { background: rgb(var(--primary-500) / 0.22); }
+    .memory-cite-text:hover { background: rgb(var(--primary-500) / 0.08); }
+}
+.compact-modal-panel.memory-cite-panel { max-width: 28rem; }
+.memory-cite-list { display: grid; gap: 0.625rem; max-height: min(60vh, 30rem); margin-top: 1rem; overflow-y: auto; overscroll-behavior: contain; }
+.memory-cite-card { padding: 0.75rem 0.875rem; border: 1px solid var(--c-border-soft); border-radius: var(--r-md); background: rgb(var(--gray-500) / 0.05); }
+.memory-cite-card header { display: flex; align-items: center; gap: 0.5rem; color: var(--c-text-3); font-size: 0.75rem; }
+.memory-cite-card header b { color: var(--c-accent-text); font-size: 0.8125rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.memory-cite-card p { margin-top: 0.375rem; color: var(--c-text-2); font-size: 0.875rem; line-height: 1.75; white-space: pre-line; overflow-wrap: anywhere; }
+.memory-cite-card p.is-missing { color: var(--c-text-4); }
 
 /* ==========================================================================
    Usage statistics
@@ -1372,6 +1417,44 @@ button.sortable-item-main:focus-visible { outline: 2px solid rgb(var(--primary-4
     backdrop-filter: blur(8px);
 }
 
+/* Context viewer: what the request is made of, then every message as a one-line preview that opens in place. */
+.ctx-viewer { border: 1px solid var(--c-border); border-radius: var(--r-lg); background: var(--c-surface); box-shadow: var(--shadow-3); }
+.ctx-viewer__body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 1rem 1.25rem 1.25rem; }
+.ctx-section + .ctx-section { margin-top: 1.25rem; }
+.ctx-section__title { display: flex; align-items: center; gap: 0.375rem; color: var(--c-text); font-size: 0.8125rem; font-weight: 700; }
+.ctx-count { padding: 0 0.375rem; border-radius: 999px; background: rgb(var(--gray-500) / 0.1); color: var(--c-text-3); font-size: 0.6875rem; font-weight: 600; line-height: 1.125rem; font-variant-numeric: tabular-nums; }
+.ctx-muted { margin-top: 0.5rem; color: var(--c-text-4); font-size: 0.8125rem; }
+.ctx-legend { display: flex; flex-wrap: wrap; gap: 0.375rem 1.25rem; margin-top: 0.625rem; color: var(--c-text-3); font-size: 0.75rem; }
+.ctx-legend li { display: inline-flex; align-items: center; gap: 0.375rem; }
+.ctx-legend b { color: var(--c-text); font-weight: 600; font-variant-numeric: tabular-nums; }
+.ctx-tone--system { --ctx-tone: var(--red-500); }
+.ctx-tone--worldinfo { --ctx-tone: var(--green-500); }
+.ctx-tone--memory { --ctx-tone: var(--amber-500); }
+.ctx-tone--original { --ctx-tone: var(--primary-500); }
+.ctx-tone--tool { --ctx-tone: 32 150 170; }
+.usage-meter > [class*="ctx-tone--"], .usage-swatch[class*="ctx-tone--"] { background: rgb(var(--ctx-tone)); }
+.ctx-section > .usage-meter { margin-top: 0; }
+.ctx-tags { display: flex; flex-wrap: wrap; gap: 0.375rem; margin-top: 0.5rem; }
+.ctx-tag { display: inline-flex; align-items: baseline; gap: 0.375rem; max-width: 100%; padding: 0.1875rem 0.5rem; border-radius: var(--r-sm); background: rgb(var(--primary-500) / 0.08); color: var(--c-accent-text); font-size: 0.75rem; }
+.ctx-tag b { font-weight: 600; }
+.ctx-tag small { overflow: hidden; color: var(--c-text-3); font-size: 0.6875rem; text-overflow: ellipsis; white-space: nowrap; }
+.ctx-messages { display: grid; gap: 0.5rem; margin-top: 0.625rem; }
+.ctx-message { overflow: hidden; border: 1px solid var(--c-border-soft); border-left: 3px solid rgb(var(--ctx-tone)); border-radius: var(--r-md); background: var(--c-surface); }
+.ctx-message__head { display: flex; align-items: center; gap: 0.5rem; width: 100%; min-width: 0; padding: 0.625rem 0.75rem; text-align: left; }
+.ctx-role { flex-shrink: 0; color: rgb(var(--ctx-tone)); font-size: 0.75rem; font-weight: 700; }
+.ctx-floor { flex-shrink: 0; color: var(--c-text-4); font-family: var(--font-mono); font-size: 0.6875rem; white-space: nowrap; }
+.ctx-floor.is-text { font-family: var(--font-sans); }
+.ctx-preview { flex: 1; min-width: 0; overflow: hidden; color: var(--c-text-3); font-size: 0.8125rem; text-overflow: ellipsis; white-space: nowrap; }
+.ctx-length { flex-shrink: 0; margin-left: auto; color: var(--c-text-4); font-size: 0.75rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ctx-chevron { width: 1rem; height: 1rem; flex-shrink: 0; color: var(--c-text-4); transition: transform var(--dur-3) var(--ease-out); }
+.ctx-chevron.is-open { transform: rotate(180deg); }
+.ctx-message__tags { margin: -0.125rem 0.75rem 0.625rem; }
+.ctx-message__body { border-top: 1px solid var(--c-border-soft); }
+.ctx-content { max-height: 28rem; overflow-y: auto; padding: 0.875rem 0.875rem 1rem; color: var(--c-text-2); font-size: 0.8125rem; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; }
+@media (max-width: 767px) {
+    .ctx-viewer__body { padding: 0.875rem; }
+}
+
 .model-selector-panel { height: min(860px, 94vh); height: min(860px, 94dvh); max-height: 100%; }
 
 @media (max-height: 520px) {
@@ -1625,7 +1708,7 @@ button.sortable-item-main:focus-visible { outline: 2px solid rgb(var(--primary-4
 }
 .input-island:focus-within { border-color: rgb(var(--primary-500) / 0.32); }
 
-.island-usage { margin: 0.125rem 0.5rem 0; padding: 0.25rem 0 0.5rem; border-bottom: 1px solid var(--c-border-soft); }
+.island-usage { margin: 0.125rem 0.5rem 0; padding: 0.25rem 0 0.5rem; }
 
 .island-input {
     display: block;
@@ -1657,7 +1740,10 @@ button.sortable-item-main:focus-visible { outline: 2px solid rgb(var(--primary-4
     transition: color var(--dur-1) ease, background-color var(--dur-2) ease, transform var(--dur-2) var(--ease-spring);
 }
 .island-button svg { width: 1.0625rem; height: 1.0625rem; }
-.island-button:hover:not(:disabled) { color: var(--c-text); background: rgb(var(--gray-500) / 0.12); }
+/* Touch screens keep :hover after a tap, which would leave the gray wash on until the next tap. */
+@media (hover: hover) and (pointer: fine) {
+    .island-button:hover:not(:disabled) { color: var(--c-text); background: rgb(var(--gray-500) / 0.12); }
+}
 .island-button:active:not(:disabled) { transform: scale(0.88); transition-duration: var(--dur-1); }
 .island-button:disabled { opacity: 0.4; cursor: not-allowed; }
 .island-button.is-active { color: var(--c-accent-text); background: rgb(var(--primary-500) / 0.14); }

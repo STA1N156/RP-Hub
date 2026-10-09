@@ -1164,6 +1164,35 @@
             </modal-shell>`
     };
 
+    const MemoryCitationModal = {
+        props: { items: { type: Array, default: () => [] } },
+        emits: ['close'],
+        template: `
+            <modal-shell :show="items.length > 0" close-on-backdrop @close="$emit('close')"
+                overlay-class="z-[70] p-4" panel-class="compact-modal-panel memory-cite-panel">
+                    <div class="choice-modal">
+                        <div class="choice-modal__head">
+                            <div>
+                                <h3>判断依据</h3>
+                                <p>AI 写这句话时所参考的记忆</p>
+                            </div>
+                            <button type="button" @click="$emit('close')" class="modal-close-button" aria-label="关闭">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                            </button>
+                        </div>
+                        <div class="memory-cite-list">
+                            <article v-for="item in items" :key="item.no" class="memory-cite-card">
+                                <header>
+                                    <b>{{ item.turnLabel || '未知轮次' }}</b>
+                                </header>
+                                <p v-if="item.missing" class="is-missing">这条记忆已不存在，可能已被删除、清空或重新整理。</p>
+                                <p v-else>{{ item.summary }}</p>
+                            </article>
+                        </div>
+                    </div>
+            </modal-shell>`
+    };
+
     const PresetEditorModal = {
         components: { CustomSelect },
         props: {
@@ -1927,77 +1956,113 @@
             messages: { type: Array, default: () => [] }
         },
         emits: ['close'],
+        setup(props) {
+            const roleLabels = { system: '系统提示词', memory: '记忆', user: '用户', assistant: 'AI', tool: '工具' };
+            const getRoleKey = message => message.isMemory ? 'memory' : (roleLabels[message.role] ? message.role : 'system');
+            // 统计时对话楼层里的用户和 AI 合并为“原文”，预注入、角色设定这类不在楼层里的消息算系统提示词；
+            // 世界书正文从所在消息里拆出来单独计数；消息条的颜色跟统计分类一致。
+            const compositionLabels = { system: '系统提示词', worldinfo: '世界书', memory: '记忆', original: '原文', tool: '工具' };
+            const getCompositionKey = message => {
+                const key = getRoleKey(message);
+                if (!['user', 'assistant'].includes(key)) return key;
+                return message.floor ? 'original' : 'system';
+            };
+            const openIndexes = ref(new Set());
+            watch(() => props.messages, () => { openIndexes.value = new Set(); });
+            // 各类消息占了多少字，一眼看出上下文主要花在哪里。
+            const composition = computed(() => {
+                const totals = {};
+                props.messages.forEach(message => {
+                    const key = getCompositionKey(message);
+                    const worldInfoChars = Number(message.worldInfoChars) || 0;
+                    totals[key] = (totals[key] || 0) + String(message.content || '').length - worldInfoChars;
+                    totals.worldinfo = (totals.worldinfo || 0) + worldInfoChars;
+                });
+                const sum = Object.values(totals).reduce((total, value) => total + value, 0) || 1;
+                return Object.keys(compositionLabels).filter(key => totals[key] > 0)
+                    .map(key => ({ key, label: compositionLabels[key], chars: totals[key], share: totals[key] / sum * 100 }));
+            });
+            const toggle = index => {
+                const next = new Set(openIndexes.value);
+                if (!next.delete(index)) next.add(index);
+                openIndexes.value = next;
+            };
+            const preview = message => String(message.content || '').replace(/\s+/g, ' ').trim().slice(0, 120);
+            // 不在对话楼层里的用户 / AI 消息是预注入，用灰字标出来代替楼层号。
+            const isPreInjection = message => !message.floor && ['user', 'assistant'].includes(getRoleKey(message));
+            const triggerText = item => (!item.triggers || item.triggers === '常驻' || item.name?.includes('记忆'))
+                ? item.triggers : `触发：${item.triggers}`;
+            return { roleLabels, getRoleKey, getCompositionKey, openIndexes, composition, toggle, preview, isPreInjection, triggerText };
+        },
         template: `
             <modal-shell :show="show" close-on-backdrop @close="$emit('close')"
-                overlay-class="z-[100] p-4 sm:p-6"
-                    panel-class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl flex flex-col overflow-hidden max-h-[90vh] sm:max-h-[85vh] border border-gray-200/50 relative">
-                        <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 flex-shrink-0">
-                            <div class="flex items-center space-x-3">
-                                <div class="text-blue-600">
-                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                                </div>
-                                <div>
-                                    <h3 class="text-lg font-bold text-gray-800 pr-10">真实上下文请求</h3>
-                                    <p class="mt-0.5 text-xs font-medium text-gray-500">共 {{ floors }} 楼 · 总字数 {{ Number(totalLength || 0).toLocaleString() }}</p>
-                                </div>
+                overlay-class="z-[100] p-3 sm:p-6"
+                panel-class="ctx-viewer w-full max-w-4xl flex flex-col overflow-hidden max-h-[90vh] sm:max-h-[85vh]">
+                    <modal-header @close="$emit('close')">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <div class="w-9 h-9 rounded-xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
                             </div>
-                            <button @click="$emit('close')" class="text-gray-400 hover:text-red-500 transition-colors bg-gray-100 hover:bg-red-50 p-2 rounded-full absolute top-4 right-4 z-50">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                            </button>
-                        </div>
-
-                        <div class="p-5 overflow-y-auto flex-1 space-y-3 bg-gray-50 custom-scrollbar overscroll-contain relative">
-                            <details class="group bg-blue-50/80 border border-blue-200/60 rounded-xl shadow-sm mb-4">
-                                <summary class="font-bold text-blue-800 flex items-center p-4 text-sm cursor-pointer select-none outline-none">
-                                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
-                                    <span>本次插入的世界书 (共 {{ worldInfos.length }} 项)</span>
-                                    <div class="ml-auto flex items-center">
-                                        <svg class="w-4 h-4 text-blue-500 group-open:rotate-180 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                                    </div>
-                                </summary>
-                                <div class="px-4 pb-4 pt-0">
-                                    <div class="flex flex-wrap gap-2 max-h-32 overflow-y-auto custom-scrollbar">
-                                        <div v-for="(wi, index) in worldInfos" :key="'wi-' + index" class="bg-blue-100 text-blue-700 border-blue-200 px-2.5 py-1.5 rounded-md text-xs shadow-sm border flex flex-col justify-center">
-                                            <span class="font-bold pb-0.5">{{ wi.name }}</span>
-                                            <span v-if="wi.triggers" class="text-blue-600/90 border-blue-200/50 font-normal text-[10px] mt-0.5 pt-0.5 border-t leading-none">{{ wi.triggers === '常驻' ? '常驻' : wi.name && wi.name.startsWith('角色记忆') ? wi.triggers : '触发: ' + wi.triggers }}</span>
-                                        </div>
-                                        <span v-if="worldInfos.length === 0" class="text-blue-500/80 text-sm italic">未触发任何世界书或世界书功能关闭。</span>
-                                    </div>
-                                </div>
-                            </details>
-
-                            <div class="space-y-3 pb-4">
-                                <div v-for="(message, index) in messages" :key="index" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden transition-all hover:shadow-md group/msg">
-                                    <details class="group">
-                                        <summary class="flex flex-col p-3.5 bg-gray-50/50 hover:bg-gray-100/50 cursor-pointer select-none transition-colors gap-2">
-                                            <div class="flex flex-row justify-between items-center w-full">
-                                                <div class="flex items-center gap-2">
-                                                    <span class="meta-badge meta-badge--role" :class="'meta-badge--' + (message.isMemory ? 'memory' : message.role)">
-                                                        <span v-if="message.floor" class="opacity-70 mr-1 font-bold">F{{ message.floor }}</span> {{ message.isMemory ? '记忆' : message.role }}
-                                                    </span>
-                                                    <span class="meta-badge">{{ message.content.length }} 字符</span>
-                                                </div>
-                                                <div class="flex items-center flex-shrink-0 ml-2">
-                                                    <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                                                </div>
-                                            </div>
-                                            <div v-if="message.wiTriggers && message.wiTriggers.length" class="flex flex-wrap gap-1.5 items-center w-full">
-                                                <div v-for="(trigger, triggerIndex) in message.wiTriggers" :key="triggerIndex" class="bg-blue-100 text-blue-700 border-blue-200 px-2 py-0.5 rounded flex flex-col border">
-                                                    <span class="text-[11px] font-semibold tracking-wide">{{ trigger.name }}</span>
-                                                    <span v-if="trigger.triggers" class="text-blue-600/90 border-blue-200/50 text-[9px] font-normal mt-[1px] pt-[1px] border-t leading-[10px]">{{ trigger.triggers === '常驻' ? '常驻' : trigger.name && trigger.name.startsWith('角色记忆') ? trigger.triggers : '触发: ' + trigger.triggers }}</span>
-                                                </div>
-                                            </div>
-                                        </summary>
-                                        <div class="p-4 bg-white border-t border-gray-100 text-[13px] text-gray-700 whitespace-pre-wrap leading-relaxed max-h-[500px] overflow-y-auto custom-scrollbar decoration-clone selection:bg-blue-200 selection:text-blue-900 break-words" v-html="message.renderedContent"></div>
-                                    </details>
-                                </div>
-
-                                <div v-if="messages.length === 0" class="flex flex-col items-center justify-center py-12 text-gray-400">
-                                    <svg class="w-12 h-12 mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                                    <p>暂无上下文记录，请先执行一次生成请求。</p>
-                                </div>
+                            <div class="min-w-0">
+                                <h3 class="text-lg font-bold text-gray-800 leading-tight">上下文查看器</h3>
+                                <p class="mt-0.5 text-xs text-gray-500 truncate">{{ floors }} 楼 · {{ Number(totalLength || 0).toLocaleString() }} 字</p>
                             </div>
                         </div>
+                    </modal-header>
+
+                    <div class="ctx-viewer__body custom-scrollbar">
+                        <section v-if="composition.length" class="ctx-section">
+                            <div class="usage-meter" aria-hidden="true">
+                                <span v-for="part in composition" :key="part.key" :class="'ctx-tone--' + part.key" :style="{ flexGrow: part.share }"></span>
+                            </div>
+                            <ul class="ctx-legend">
+                                <li v-for="part in composition" :key="part.key">
+                                    <i class="usage-swatch" :class="'ctx-tone--' + part.key"></i>{{ part.label }}<b>{{ part.chars.toLocaleString() }}</b>
+                                </li>
+                            </ul>
+                        </section>
+
+                        <section class="ctx-section">
+                            <h4 class="ctx-section__title">插入的世界书<span class="ctx-count">{{ worldInfos.length }}</span></h4>
+                            <div v-if="worldInfos.length" class="ctx-tags">
+                                <span v-for="(item, index) in worldInfos" :key="'wi-' + index" class="ctx-tag">
+                                    <b>{{ item.name }}</b><small v-if="item.triggers">{{ triggerText(item) }}</small>
+                                </span>
+                            </div>
+                            <p v-else class="ctx-muted">没有触发世界书，或世界书功能已关闭。</p>
+                        </section>
+
+                        <section class="ctx-section">
+                            <h4 class="ctx-section__title">消息<span class="ctx-count">{{ messages.length }}</span></h4>
+                            <ol v-if="messages.length" class="ctx-messages">
+                                <li v-for="(message, index) in messages" :key="index" class="ctx-message" :class="'ctx-tone--' + getCompositionKey(message)">
+                                    <button type="button" class="ctx-message__head" :aria-expanded="openIndexes.has(index)" @click="toggle(index)">
+                                        <span class="ctx-role">{{ roleLabels[getRoleKey(message)] }}</span>
+                                        <span v-if="message.floor" class="ctx-floor">F{{ message.floor }}</span>
+                                        <span v-else-if="isPreInjection(message)" class="ctx-floor is-text">预注入</span>
+                                        <span class="ctx-preview">{{ preview(message) }}</span>
+                                        <span class="ctx-length">{{ String(message.content || '').length.toLocaleString() }} 字</span>
+                                        <svg class="ctx-chevron" :class="{ 'is-open': openIndexes.has(index) }" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                    </button>
+                                    <div v-if="message.wiTriggers && message.wiTriggers.length" class="ctx-tags ctx-message__tags">
+                                        <span v-for="(trigger, triggerIndex) in message.wiTriggers" :key="triggerIndex" class="ctx-tag">
+                                            <b>{{ trigger.name }}</b><small v-if="trigger.triggers">{{ triggerText(trigger) }}</small>
+                                        </span>
+                                    </div>
+                                    <div v-if="openIndexes.has(index)" class="ctx-message__body">
+                                        <div class="ctx-content custom-scrollbar" v-html="message.renderedContent"></div>
+                                    </div>
+                                </li>
+                            </ol>
+                            <div v-else class="empty-state">
+                                <svg fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                <p>暂无上下文记录</p>
+                                <small>发送一条消息后，这里会显示实际发给模型的内容</small>
+                            </div>
+                        </section>
+                    </div>
             </modal-shell>`
     };
 
@@ -2414,7 +2479,7 @@
                                 </div>
                             </div>
                             <button @click="$emit('close')"
-                                class="w-9 h-9 rounded-full bg-gray-50 hover:bg-red-50 text-gray-400 hover:text-red-500 flex items-center justify-center transition-colors flex-shrink-0">
+                                class="w-9 h-9 rounded-full hover:bg-red-50 text-gray-400 hover:text-red-500 flex items-center justify-center transition-colors flex-shrink-0">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                                 </svg>
@@ -2717,31 +2782,44 @@
             const focused = computed(() => props.items[focusedIndex.value]);
             const buttonColors = ref(null);
             watch(() => focused.value?.char.avatar, avatar => { if (!avatar) buttonColors.value = null; });
+            // 读取失败（跨域封面）时抛错，由调用方决定退路。
+            const readButtonColors = image => {
+                const canvas = document.createElement('canvas');
+                canvas.width = canvas.height = 12;
+                const context = canvas.getContext('2d', { willReadFrequently: true });
+                context.drawImage(image, 0, 0, 12, 12);
+                const pixels = context.getImageData(0, 0, 12, 12).data;
+                const rgb = [0, 0, 0];
+                let weight = 0;
+                for (let i = 0; i < pixels.length; i += 4) {
+                    const alpha = pixels[i + 3] / 255;
+                    weight += alpha;
+                    rgb.forEach((_, channel) => { rgb[channel] += pixels[i + channel] * alpha; });
+                }
+                if (!weight) return null;
+                const color = rgb.map(value => Math.round(value / weight));
+                const linear = color.map(value => value / 255).map(value => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4);
+                const luminance = linear[0] * 0.2126 + linear[1] * 0.7152 + linear[2] * 0.0722;
+                return { '--deck-button-bg': `rgb(${color.join(',')})`, '--deck-button-text': luminance > 0.45 ? '#000' : '#fff' };
+            };
             const syncButtonColors = event => {
                 const image = event.currentTarget;
-                if (image.getAttribute('src') !== focused.value?.char.avatar) return;
+                const src = image.getAttribute('src');
+                if (src !== focused.value?.char.avatar) return;
                 buttonColors.value = null;
                 if (event.type === 'error') return;
                 try {
-                    const canvas = document.createElement('canvas');
-                    canvas.width = canvas.height = 12;
-                    const context = canvas.getContext('2d', { willReadFrequently: true });
-                    context.drawImage(image, 0, 0, 12, 12);
-                    const pixels = context.getImageData(0, 0, 12, 12).data;
-                    const rgb = [0, 0, 0];
-                    let weight = 0;
-                    for (let i = 0; i < pixels.length; i += 4) {
-                        const alpha = pixels[i + 3] / 255;
-                        weight += alpha;
-                        rgb.forEach((_, channel) => { rgb[channel] += pixels[i + channel] * alpha; });
-                    }
-                    if (!weight) return;
-                    const color = rgb.map(value => Math.round(value / weight));
-                    const linear = color.map(value => value / 255).map(value => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4);
-                    const luminance = linear[0] * 0.2126 + linear[1] * 0.7152 + linear[2] * 0.0722;
-                    buttonColors.value = { '--deck-button-bg': `rgb(${color.join(',')})`, '--deck-button-text': luminance > 0.45 ? '#000' : '#fff' };
+                    buttonColors.value = readButtonColors(image);
                 } catch {
-                    // 跨域封面无法取色时使用默认配色，不影响封面显示或切换。
+                    // 工坊一键导入等跨域封面不能直接取色：允许跨域读取的图床再匿名读一次（通常直接命中缓存），
+                    // 仍不允许时保留默认配色，不影响封面显示或切换。
+                    const probe = new Image();
+                    probe.crossOrigin = 'anonymous';
+                    probe.onload = () => {
+                        if (src !== focused.value?.char.avatar) return;
+                        try { buttonColors.value = readButtonColors(probe); } catch { /* 图床不允许跨域读取 */ }
+                    };
+                    probe.src = src;
                 }
             };
             watch(() => props.items.map(item => item.char.uuid), (ids, previous = []) => {
@@ -2938,6 +3016,7 @@
         SettingsHelp,
         SettingsPageHeader,
         MemoryBackfillModal,
+        MemoryCitationModal,
         StoryBranchModal,
         TokenUsageView,
         UiTemplatesView,

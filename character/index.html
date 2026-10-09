@@ -819,8 +819,9 @@
                                             <div class="form-control">
                                                 <label
                                                     class="label font-bold text-base-content/70 text-sm uppercase tracking-wide">作者注释</label>
-                                                <textarea v-model="currentCharacter.creator_notes" rows="1"
-                                                    class="textarea textarea-bordered h-12 min-h-12 xl:h-14 xl:min-h-14 py-[11px] xl:py-[15px] leading-6 resize-y bg-base-200/30 focus:bg-base-100 transition-colors"
+                                                <!-- 单行显示但仍用 textarea：导入卡里的多行注释不会在编辑时被合并成一行 -->
+                                                <textarea v-model="currentCharacter.creator_notes" rows="1" wrap="off" @keydown.enter.prevent
+                                                    class="textarea textarea-bordered h-12 min-h-12 xl:h-14 xl:min-h-14 py-[11px] xl:py-[15px] leading-6 resize-none overflow-hidden bg-base-200/30 focus:bg-base-100 transition-colors"
                                                     placeholder="给使用者的使用说明..."></textarea>
                                             </div>
                                             <div class="form-control">

@@ -27,6 +27,7 @@ const {
     SettingsHelp,
     SettingsPageHeader,
     MemoryBackfillModal,
+    MemoryCitationModal,
     StoryBranchModal,
     TokenUsageView,
     UiTemplatesView,
@@ -50,11 +51,14 @@ const {
 const {
     buildSummaryEmbeddingText,
     cosineSimilarity,
+    flattenClassicMemories,
     getClassicMemoryKey,
+    getNextClassicMemoryNo,
     getSummaryEmbedding,
     getSummarySources,
     markRuntimeRaw,
     normalizeEmbedding,
+    numberClassicMemories,
     prepareClassicMemoriesForRuntime,
     quantizeEmbeddingForStorage,
     trimMemoryText
@@ -187,6 +191,7 @@ const app = createApp({
         SettingsHelp,
         SettingsPageHeader,
         MemoryBackfillModal,
+        MemoryCitationModal,
         StoryBranchModal,
         TokenUsageView,
         UiTemplatesView,
@@ -1329,8 +1334,6 @@ const app = createApp({
             (total, message) => total + String(message?.content || '').length,
             0
         ));
-        const lastContextFloorCount = computed(() => lastContextMessages.value
-            .filter(message => Number.isFinite(message?.floor)).length);
         const CHARACTER_SCOPED_STORAGE_NAMES = ['chat', 'classic_memories', 'branches'];
         const {
             clearTokenUsageHistory,
@@ -2575,6 +2578,8 @@ const app = createApp({
         const stripNextResponsePrompt = (text) => String(text || '')
             .replace(/<next_response>[\s\S]*?<\/next_response>/gi, '')
             .replace(/<next_response>[\s\S]*$/gi, '');
+        // 正文里的记忆引用 [M12] 只给界面展示，发回模型、做总结、检索和复制时去掉。
+        const stripMemoryCitations = (text) => String(text || '').replace(/\[M\d{1,6}\]/g, '');
 
         const buildUiTemplateContextSystemPrompt = () => {
             if (!settings.uiTemplateEnabled || !settings.uiTemplateInjectContext || settings.uiTemplateMainModelAnalysis) return '';
@@ -3250,16 +3255,27 @@ const app = createApp({
             });
             return role === 'assistant' ? filterBlockedStyleText(result) : result;
         };
+        // 记忆编号对应的轮次（单轮 3，合并总结 1-5），正文角标和判断依据弹窗都显示轮次。
+        const memoryCitationLabels = computed(() => new Map(flattenClassicMemories(classicMemories.value)
+            .filter(memory => Number.isInteger(memory.no))
+            .map(memory => {
+                const range = getClassicMemoryTurnRange(memory);
+                return [memory.no, range.start === range.end ? String(range.start) : `${range.start}-${range.end}`];
+            })));
+        const memoryCitationVersion = computed(() => [...memoryCitationLabels.value].map(entry => entry.join(':')).join(','));
         const {
             clearCaches: clearMessageRenderCaches,
             contentUsesHtmlFrame,
+            decorateMemoryCitations,
             renderMarkdown
         } = createMessageRenderer({
             processRegex,
             replaceUserPlaceholder: replaceUserNamePlaceholder,
             createExecutableHtmlIframe,
             marked,
-            DOMPurify
+            DOMPurify,
+            getMemoryCitationLabel: no => memoryCitationLabels.value.get(no),
+            getMemoryCitationVersion: () => memoryCitationVersion.value
         });
         watch(() => [settings.disableImages, settings.styleFilterEnabled, regexScripts.value, user.name], () => {
             clearMessageRenderCaches();
@@ -3730,7 +3746,7 @@ const app = createApp({
         };
 
         const copyMessage = (content) => {
-            navigator.clipboard.writeText(stripUiTemplateUpdateBlock(content)).then(() => {
+            navigator.clipboard.writeText(stripMemoryCitations(stripUiTemplateUpdateBlock(content))).then(() => {
                 showToast('已复制到剪贴板', 'success');
             }).catch(err => {
                 console.error('Copy failed:', err);
@@ -4415,6 +4431,11 @@ const app = createApp({
             // 6. User Info (Moved to end)
             systemPromptParts.push(userPrompt);
 
+            // 7. 记忆引用：正文承接某条总结记忆时在句末标注编号，界面据此展示判断依据。
+            if (memorySettings.enabled && classicMemories.value.length > 0) {
+                systemPromptParts.push(BUILTIN_PROMPTS.memoryCitationInstruction);
+            }
+
             const activeToolPrompt = buildActiveToolSystemPrompt(requestTools);
             if (activeToolPrompt) systemPromptParts.push(activeToolPrompt);
             else if (activeToolDepth > 0) systemPromptParts.push('本轮工具调用已结束，请依据已有结果完成回复，不再调用工具；无法确认的信息明确说明。');
@@ -4552,11 +4573,14 @@ const app = createApp({
                             content: getClassicSecondaryMemoryMarker(memory),
                             _sourceIndexes: [],
                             _preventContextMerge: true,
+                            _classicMemory: true,
                             _suppressUiTemplateCorrection: true
                         };
                         chatHistoryForContext[retainedAssistantIndex] = {
                             ...chatHistoryForContext[retainedAssistantIndex],
                             content: memory.summary,
+                            _memoryNo: memory.no,
+                            _classicMemory: true,
                             _sourceIndexes: []
                         };
                     });
@@ -4575,6 +4599,8 @@ const app = createApp({
                         chatHistoryForContext[assistantIndex] = {
                             ...chatHistoryForContext[assistantIndex],
                             content: memory.summary,
+                            _memoryNo: memory.no,
+                            _classicMemory: true,
                             _sourceIndexes: []
                         };
                     });
@@ -4598,7 +4624,7 @@ const app = createApp({
                         const parsedData = parseCot(source.content || '');
                         let content = stripUiTemplateContextInjection(parsedData.main);
                         if (!settings.uiTemplateEnabled || !settings.uiTemplateMainModelAnalysis) content = stripUiTemplateUpdateBlock(content);
-                        content = stripDisabledImageGenContext(stripNextResponsePrompt(content));
+                        content = stripMemoryCitations(stripDisabledImageGenContext(stripNextResponsePrompt(content)));
                         const recentThinking = source.role === 'assistant' ? recentThinkingByMessage.get(source) : '';
                         if (recentThinking) content = `${wrapAnalysis(retainedThinkingTag, recentThinking)}${content}`;
                         if (source === openingSourceMessage && openingThinking) content = `${openingThinking}${content}`;
@@ -4623,10 +4649,13 @@ const app = createApp({
                     return {
                         role: m.role === 'user' ? 'user' : 'assistant',
                         name: m.name || (m.role === 'user' ? user.name : currentCharacter.value.name),
-                        content: cleanContent,
+                        // 总结前带上编号（清理引用标记之后再加），召回片段用同一编号，模型才能在正文里引用。
+                        content: Number.isInteger(m._memoryNo) ? `[M${m._memoryNo}]\n${cleanContent}` : cleanContent,
                         _sourceIndexes: sourceIndexes,
                         _contextFloor: m._contextFloor,
-                        _preventContextMerge: m._preventContextMerge === true
+                        _preventContextMerge: m._preventContextMerge === true,
+                        // 被记忆替换的楼层（总结和合并标记），查看器把它们算作记忆而不是原文。
+                        _classicMemory: m._classicMemory === true
                     };
                 })
                 .filter(m => String(m.content || '').trim())
@@ -4954,7 +4983,7 @@ const app = createApp({
                 ? indexes.map(index => chatHistory.value[index]).filter(source => source?.role === message.role)
                 : [message];
             return sources.map(source => appendMessageImageDescriptions(source,
-                stripNextResponsePrompt(stripUiTemplateContextInjection(parseCot(source.content || '').main))
+                stripMemoryCitations(stripNextResponsePrompt(stripUiTemplateContextInjection(parseCot(source.content || '').main)))
             )).filter(Boolean).join('\n\n');
         };
 
@@ -5191,6 +5220,7 @@ const app = createApp({
                         const sourceMemories = group.map(memory => cloneForStorage(memory));
                         const mergedMemory = markRuntimeRaw({
                             id: generateUUID(),
+                            no: getNextClassicMemoryNo(classicMemories.value),
                             timestamp: Date.now(),
                             turn: endTurn,
                             turnStart: startTurn,
@@ -5327,6 +5357,7 @@ const app = createApp({
                 if (currentCharacter.value?.uuid !== job.characterId || getCurrentStoryBranchScopeId() !== job.storyScopeId || hasClassicMemoryForJob(job)) return false;
                 classicMemories.value.push(markRuntimeRaw({
                     id: generateUUID(),
+                    no: getNextClassicMemoryNo(classicMemories.value),
                     timestamp: Date.now(),
                     turn: job.turn,
                     summary,
@@ -5493,7 +5524,7 @@ const app = createApp({
             if (!message || typeof message.content !== 'string') return '';
             const parsedData = parseCot(message.content || '');
             const cleanMain = stripUiTemplateContextInjection(parsedData.main || '');
-            return trimMemoryText(stripDisabledImageGenContext(stripNextResponsePrompt(stripUiTemplateUpdateBlock(cleanMain))), 5000);
+            return trimMemoryText(stripMemoryCitations(stripDisabledImageGenContext(stripNextResponsePrompt(stripUiTemplateUpdateBlock(cleanMain)))), 5000);
         };
 
         const buildKeywordToolSnippet = (text, matchedTerms) => {
@@ -7108,7 +7139,7 @@ const app = createApp({
                 _isApplyingCharacterScopedData = true;
                 resetChatRenderWindow();
                 chatHistory.value = sourceChatHistory;
-                classicMemories.value = prepareClassicMemoriesForRuntime(branchClassicMemories);
+                classicMemories.value = numberClassicMemories(prepareClassicMemoriesForRuntime(branchClassicMemories));
                 _classicMemoriesLoaded = true;
                 clearStoryBranchTransientContext();
                 finishApplyingCharacterScopedData();
@@ -7161,7 +7192,7 @@ const app = createApp({
                 activeStoryBranchId.value = branchId;
                 resetChatRenderWindow();
                 chatHistory.value = loadedChatHistory;
-                classicMemories.value = prepareClassicMemoriesForRuntime(savedClassicMemories);
+                classicMemories.value = numberClassicMemories(prepareClassicMemoriesForRuntime(savedClassicMemories));
                 _classicMemoriesLoaded = true;
                 loadGlobalUiTemplateRuntimeForCharacter(char);
                 clearStoryBranchTransientContext();
@@ -7199,7 +7230,7 @@ const app = createApp({
             let summaryLoaded = false;
             try {
                 const savedMemories = await getScopedStoredValue('classic_memories', characterId);
-                summaryMemories = prepareClassicMemoriesForRuntime(savedMemories);
+                summaryMemories = numberClassicMemories(prepareClassicMemoriesForRuntime(savedMemories));
                 summaryLoaded = true;
             } catch (error) {
                 console.error(`Error loading classic memories${errorContext}:`, error);
@@ -8174,6 +8205,37 @@ const app = createApp({
         });
         const memoryStats = computed(() => ({ activeTotal: classicMemories.value.length }));
 
+        // 点正文里的记忆引用，查看 AI 当时依据的总结记忆；按编号在当前分支的记忆（含已合并的原始总结）里查找。
+        const memoryCitationNos = ref([]);
+        const memoryCitationItems = computed(() => {
+            if (!memoryCitationNos.value.length) return [];
+            const byNo = new Map(flattenClassicMemories(classicMemories.value).map(memory => [memory.no, memory]));
+            return memoryCitationNos.value.map(no => {
+                const memory = byNo.get(no);
+                if (!memory) return { no, missing: true };
+                return {
+                    no,
+                    turnLabel: `第 ${memoryCitationLabels.value.get(no)} 轮`,
+                    summary: memory.summary
+                };
+            });
+        });
+        const showMemoryCitation = (nos) => {
+            const numbers = [...new Set(String(nos || '').split(',').map(Number).filter(no => Number.isInteger(no) && no > 0))];
+            if (numbers.length) memoryCitationNos.value = numbers;
+        };
+        const openMemoryCitation = (event) => showMemoryCitation(event.target.closest?.('.memory-cite, .memory-cite-text')?.dataset.memoryNos);
+        // HTML 卡片在 iframe 里渲染，卡片脚本借这里的处理给引用加角标，点击后在这里打开判断依据。
+        window.RPHubMemoryCitations = {
+            decorate: decorateMemoryCitations,
+            open: showMemoryCitation,
+            frameStyle: () => {
+                const tone = getComputedStyle(document.documentElement).getPropertyValue('--primary-500').trim() || '99 102 241';
+                return `.memory-cite-text{text-decoration:underline dotted rgb(${tone});text-decoration-thickness:1.5px;text-underline-offset:.3em;cursor:pointer}`
+                    + `.memory-cite{display:inline-flex;align-items:center;justify-content:center;min-width:1.4em;height:1.4em;margin:0 .15em;padding:0 .35em;border:0;border-radius:999px;background:rgb(${tone} / .14);color:rgb(${tone});font:700 .68em/1 system-ui,sans-serif;vertical-align:.35em;cursor:pointer}`;
+            }
+        };
+
         const applyPersonPresetSelection = (person) => {
             user.person = person === 'third' ? 'third' : 'second';
             const secondPersonPreset = presets.value.find(preset => preset.name === '第二人称');
@@ -8189,7 +8251,7 @@ const app = createApp({
             showActiveToolEditor,
             showExportModal, exportItems, selectedExportIndices, // Export Modal
             showContextViewerModal, lastContextMessages, lastTriggeredWorldInfos,
-            lastContextTotalLength, lastContextFloorCount, // Context Viewer
+            lastContextTotalLength, // Context Viewer
             showStoryBranchModal, showStoryBranchNameEditor, storyBranchNameDraft,
             storyBranches, storyRouteMap, currentStoryBranch, selectedStoryRouteNode,
             selectedStoryBranchId, storyBranchSwitching, storyRouteMapDragging,
@@ -8234,7 +8296,7 @@ const app = createApp({
                 set: (val) => { settings.uiTemplateAnalysisDepth = Math.max(4, Math.min(10, Number(val) || 4)); }
             }),
             displayedClassicMemories,
-            memoryStats,
+            memoryStats, memoryCitationNos, memoryCitationItems, openMemoryCitation,
             clearAllMemories: () => {
                 confirmAction('确定要清空所有总结记忆及其向量吗？两个模式共享这些记忆，此操作无法撤销。', async () => {
                     abortClassicBatchExtraction();

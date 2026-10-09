@@ -301,6 +301,22 @@
         ? items.map(memory => normalizeClassicMemoryForRuntime(memory)).filter(Boolean)
         : [];
 
+    // 每条总结记忆有一个持久编号（显示为 M编号），上下文、召回和正文引用共用；旧数据按轮次顺序补号。
+    const flattenClassicMemories = items => (Array.isArray(items) ? items : [])
+        .flatMap(memory => [...(memory?.sourceMemories || []), memory]);
+    const getNextClassicMemoryNo = items => flattenClassicMemories(items)
+        .reduce((max, memory) => Math.max(max, Number.isInteger(memory?.no) ? memory.no : 0), 0) + 1;
+    const numberClassicMemories = items => {
+        let next = getNextClassicMemoryNo(items);
+        flattenClassicMemories(items)
+            .filter(memory => memory && !Number.isInteger(memory.no))
+            .sort((a, b) => (a.secondaryCompressed === true) - (b.secondaryCompressed === true)
+                || (Number(a.turnStart || a.turn) || 0) - (Number(b.turnStart || b.turn) || 0)
+                || (Number(a.timestamp) || 0) - (Number(b.timestamp) || 0))
+            .forEach(memory => { memory.no = next++; });
+        return items;
+    };
+
 
     const trimMemoryText = (text, maxLength = 1800) => {
         const cleanText = String(text || '').replace(/\n{3,}/g, '\n\n').trim();
@@ -359,11 +375,14 @@
     window.RPHubMemoryUtils = Object.freeze({
         buildSummaryEmbeddingText,
         cosineSimilarity,
+        flattenClassicMemories,
         getClassicMemoryKey,
+        getNextClassicMemoryNo,
         getSummaryEmbedding,
         getSummarySources,
         markRuntimeRaw,
         normalizeEmbedding,
+        numberClassicMemories,
         prepareClassicMemoriesForRuntime,
         quantizeEmbeddingForStorage,
         trimMemoryText
@@ -401,7 +420,7 @@
             '<enhanced_memory_recall>',
             ...BUILTIN_PROMPTS.enhancedMemoryRecallDescription,
             ...memories.map(memory => [
-                `  <memory_fragment turn="${escapeXmlAttribute(memory.turn)}" similarity="${(memory.score * 100).toFixed(1)}%">`,
+                `  <memory_fragment id="M${escapeXmlAttribute(memory.no)}" turn="${escapeXmlAttribute(memory.turn)}" similarity="${(memory.score * 100).toFixed(1)}%">`,
                 `    <user_input>${escapeXmlText(memory.sourceUserText)}</user_input>`,
                 `    <summary>${escapeXmlText(memory.summary)}</summary>`,
                 '  </memory_fragment>'
@@ -428,6 +447,7 @@
         if (message.id) nextMessage.id = message.id;
         if (Number.isFinite(message._contextFloor)) nextMessage._contextFloor = message._contextFloor;
         if (message._preventContextMerge === true) nextMessage._preventContextMerge = true;
+        if (message._classicMemory === true) nextMessage._classicMemory = true;
         if (trackSources) nextMessage._sourceIndexes = getMessageSourceIndexes(message, index, true);
         else if (Array.isArray(message?._sourceIndexes)) nextMessage._sourceIndexes = getMessageSourceIndexes(message, index, false);
         if (Array.isArray(message?._worldInfoEntries)) nextMessage._worldInfoEntries = message._worldInfoEntries;
@@ -686,11 +706,13 @@
             }).join(', ');
         };
 
+        const worldInfoContents = (Array.isArray(budgetedEntries) ? budgetedEntries : [])
+            .map(entry => String(entry.content || '').trim())
+            .filter(Boolean);
         const triggeredWorldInfos = (Array.isArray(budgetedEntries) ? budgetedEntries : []).map(entry => ({
             name: getDisplayName(entry),
             triggers: getTriggerText(entry)
         }));
-        let displayedFloor = 0;
         const contextMessages = (Array.isArray(messages) ? messages : []).map(message => {
             const injectedWorldInfos = new Map();
             (Array.isArray(message._worldInfoEntries) ? message._worldInfoEntries : []).forEach(entry => {
@@ -720,6 +742,11 @@
                     '<mark class="bg-yellow-200/80 text-yellow-900 border-b border-yellow-400 font-bold px-0.5 mx-px rounded shadow-sm">$1</mark>'
                 );
             });
+            // 总结记忆的编号标签和召回片段标签一样高亮，方便对照正文里的引用。
+            renderedContent = renderedContent.replace(
+                /\[M\d{1,6}\]/g,
+                '<mark class="bg-primary-200/80 text-primary-900 border-b border-primary-400 font-bold px-1 rounded shadow-sm">$&</mark>'
+            );
             if (isMemory) {
                 renderedContent = renderedContent.replace(
                     /&lt;\/?(?:enhanced_memory_recall|memory_fragment)\b[\s\S]*?&gt;/g,
@@ -732,8 +759,12 @@
                 name: message.name,
                 content,
                 renderedContent,
-                floor: Number.isFinite(message._contextFloor) ? ++displayedFloor : null,
-                isMemory,
+                // 用对话里的真实楼层号：记忆压缩会把部分楼层并掉，按顺序重新编号就和简介对不上。
+                floor: Number.isFinite(message._contextFloor) ? message._contextFloor : null,
+                // 这条消息里世界书正文占的字数，查看器把它从所在消息里拆出来单独统计。
+                worldInfoChars: worldInfoContents.reduce((total, text) => total + (content.includes(text) ? text.length : 0), 0),
+                // 被记忆替换的楼层（总结和合并标记）也按记忆显示和统计，原文只算没被替换的部分。
+                isMemory: isMemory || message._classicMemory === true,
                 wiTriggers: Array.from(injectedWorldInfos.entries()).map(([name, triggers]) => ({ name, triggers }))
             };
         });
@@ -1289,6 +1320,17 @@
                     document.querySelectorAll('img').forEach(function(img) {
                         img.addEventListener('load', updateHeight);
                     });
+                    // 卡片里的记忆引用 [M12]：借父页面同一套处理加角标，点击回到父页面打开判断依据。
+                    var citations = window.parent && window.parent.RPHubMemoryCitations;
+                    if (citations && citations.decorate(document)) {
+                        var citationStyle = document.createElement('style');
+                        citationStyle.textContent = citations.frameStyle();
+                        document.head.appendChild(citationStyle);
+                        document.addEventListener('click', function(event) {
+                            var cite = event.target.closest && event.target.closest('.memory-cite, .memory-cite-text');
+                            if (cite) citations.open(cite.getAttribute('data-memory-nos'));
+                        });
+                    }
                     updateHeight();
                 });
                 if (window.ResizeObserver) {
