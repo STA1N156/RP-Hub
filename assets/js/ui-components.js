@@ -337,6 +337,10 @@
                 { label: '在线', items: onlineItems },
                 { label: '高级', items: advancedItems }
             ];
+            // Running index for the opening cascade (--i in CSS).
+            let order = 0;
+            sections.forEach(section => { section.offset = order; order += section.items.length + 1; });
+            const footerOrder = order;
             const selectView = view => {
                 emit('update:current-view', view);
                 emit('close');
@@ -374,10 +378,10 @@
                     first?.focus();
                 }
             };
-            return { panel, position, centered, sections, selectView, restoreFocus, trapFocus, isDark, toggleTheme };
+            return { panel, position, centered, sections, footerOrder, selectView, restoreFocus, trapFocus, isDark, toggleTheme };
         },
         template: `
-            <transition name="app-navigation" :duration="{ enter: 380, leave: 250 }" @after-leave="restoreFocus">
+            <transition name="app-navigation" :duration="{ enter: 560, leave: 250 }" @after-leave="restoreFocus">
                 <div v-if="open" class="app-navigation-layer" @click.self="$emit('close')"
                     :class="{ 'app-navigation-layer--centered': centered }"
                     @keydown.esc.stop.prevent="$emit('close')" @keydown="trapFocus">
@@ -395,10 +399,11 @@
                         </header>
                         <nav class="app-navigation-content custom-scrollbar" aria-label="页面">
                             <section v-for="section in sections" :key="section.label" class="app-navigation-section">
-                                <h3>{{ section.label }}</h3>
+                                <h3 :style="{ '--i': section.offset }">{{ section.label }}</h3>
                                 <div class="app-navigation-grid" :class="{ 'app-navigation-grid--online': section.label === '在线' }">
-                                    <button v-for="item in section.items" :key="item.view" type="button"
+                                    <button v-for="(item, itemIndex) in section.items" :key="item.view" type="button"
                                         class="app-navigation-item" :class="{ 'is-current': item.view === currentView }"
+                                        :style="{ '--i': section.offset + itemIndex + 1 }"
                                         :aria-current="item.view === currentView ? 'page' : null"
                                         @click="selectView(item.view)">
                                         <span class="app-navigation-icon">
@@ -420,7 +425,7 @@
                                 </div>
                             </section>
                         </nav>
-                        <footer class="app-navigation-user">
+                        <footer class="app-navigation-user" :style="{ '--i': footerOrder }">
                             <img v-if="user.avatar" :src="user.avatar" alt="">
                             <span v-else class="app-navigation-avatar">{{ (user.name || 'U').charAt(0).toUpperCase() }}</span>
                             <div><strong>{{ user.name }}</strong></div>
@@ -504,7 +509,7 @@
             remote: Boolean
         },
         template: `
-            <div class="flex items-center gap-1.5 text-[11px] text-gray-500 font-mono bg-white/50 backdrop-blur-sm px-2.5 py-1 rounded-full border border-white/50 animate-fade-in mt-1 shadow-sm typing-timer-badge">
+            <div class="typing-timer-badge flex items-center gap-1.5 text-[11px] font-mono px-2.5 py-1 rounded-full animate-fade-in mt-1 shadow-sm">
                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
@@ -562,19 +567,23 @@
             </div>`
     };
 
+    // Owns the open/close animation for every modal: the overlay fades, the panel rises.
     const ModalShell = {
         inheritAttrs: false,
         props: {
+            show: Boolean,
             overlayClass: { type: [String, Array, Object], default: '' },
             panelClass: { type: [String, Array, Object], default: '' },
             closeOnBackdrop: Boolean
         },
         emits: ['close'],
         template: `
-            <div :class="['fixed inset-0 flex items-center justify-center', overlayClass]"
-                @click.self="closeOnBackdrop && $emit('close')">
-                <div class="app-modal-panel" :class="panelClass"><slot></slot></div>
-            </div>`
+            <transition name="modal">
+                <div v-if="show" :class="['app-modal-overlay fixed inset-0 flex items-center justify-center', overlayClass]"
+                    @click.self="closeOnBackdrop && $emit('close')">
+                    <div class="app-modal-panel" :class="panelClass"><slot></slot></div>
+                </div>
+            </transition>`
     };
 
     const ModalHeader = {
@@ -684,9 +693,9 @@
             return { contentEl, countdown, handleScroll, close, remoteUpdateId, scrolledToBottom, show };
         },
         template: `
-            <modal-shell v-if="show" overlay-class="z-[80] bg-black/50 backdrop-blur-sm p-4 animate-fade-in"
+            <modal-shell :show="show" overlay-class="z-[80] p-4"
                 panel-class="bg-white rounded-xl border border-gray-200 w-full max-w-lg flex flex-col shadow-2xl transform transition-all scale-100 overflow-hidden relative">
-                    <div class="bg-gradient-to-r from-primary-50 to-purple-50 p-4 border-b border-gray-100">
+                    <div class="bg-gradient-to-r from-primary-50 to-white p-4 border-b border-gray-100">
                         <div class="flex items-center gap-3">
                             <h3 class="text-xl font-bold text-gray-900">{{ remoteUpdateId ? '发现新版本' : update.title }}</h3>
                             <span class="bg-primary-100 text-primary-600 text-[10px] font-bold px-2 py-0.5 rounded-full border border-primary-200 transform translate-y-0.5">New</span>
@@ -766,7 +775,7 @@
             return { dialog, onKeydown, running, stages, statusLabel, stageTiming };
         },
         template: `
-            <modal-shell v-if="show" overlay-class="z-[80] bg-black/50 backdrop-blur-sm p-2 md:p-3 animate-fade-in"
+            <modal-shell :show="show" overlay-class="z-[80] p-2 md:p-3"
                 panel-class="bg-white rounded-2xl border border-gray-200 w-full max-w-2xl flex flex-col shadow-2xl max-h-[94vh] overflow-hidden">
                 <section ref="dialog" class="flex max-h-[94vh] flex-col outline-none" tabindex="-1"
                     role="dialog" aria-modal="true" aria-labelledby="memory-backfill-title" @keydown="onKeydown">
@@ -824,7 +833,7 @@
         },
         emits: ['update:name', 'update:description', 'update:person', 'save'],
         template: `
-            <modal-shell v-if="show" overlay-class="z-[70] bg-black/50 backdrop-blur-sm p-4 animate-fade-in"
+            <modal-shell :show="show" overlay-class="z-[70] p-4"
                 panel-class="bg-white rounded-xl border border-gray-200 w-full max-w-md max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden shadow-2xl transform transition-all scale-100">
                     <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain p-6 custom-scrollbar">
                         <div class="flex items-center justify-center w-12 h-12 rounded-full bg-primary-100 text-primary-600 mb-4 mx-auto">
@@ -911,8 +920,7 @@
             }
         },
         template: `
-            <transition name="fade">
-                <modal-shell v-if="show" overlay-class="z-50 bg-black/50 backdrop-blur-sm p-3 sm:p-4"
+            <modal-shell :show="show" overlay-class="z-50 p-3 sm:p-4"
                     panel-class="model-selector-panel bg-white rounded-2xl border border-gray-200 w-full max-w-3xl flex flex-col shadow-2xl overflow-hidden">
                     <section class="flex min-h-0 flex-1 flex-col" role="dialog" aria-modal="true" aria-labelledby="model-selector-title"
                         @keydown.esc.stop="$emit('close')">
@@ -985,8 +993,7 @@
                             </div>
                         </div>
                     </section>
-                </modal-shell>
-            </transition>`
+            </modal-shell>`
     };
 
     const PaginationControls = {
@@ -1018,65 +1025,40 @@
         props: { show: Boolean },
         emits: ['close', 'create', 'generate', 'import-character'],
         template: `
-            <modal-shell v-if="show" close-on-backdrop @close="$emit('close')"
-                overlay-class="z-[60] bg-black/50 backdrop-blur-sm p-4 animate-fade-in"
+            <modal-shell :show="show" close-on-backdrop @close="$emit('close')"
+                overlay-class="z-[60] p-4"
                 panel-class="compact-modal-panel">
-                    <div class="p-6">
-                        <h3 class="text-xl font-bold text-gray-900 mb-6 flex items-center">
-                            <svg class="w-6 h-6 mr-2 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                            </svg>
-                            添加角色卡
-                        </h3>
-                        <div class="grid grid-cols-1 gap-3">
-                            <button @click="$emit('create')" class="choice-card group">
-                                <div class="choice-card__icon">
-                                    <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                                    </svg>
-                                </div>
-                                <div class="text-left">
-                                    <div class="font-bold">新建角色卡</div>
-                                    <div class="text-xs text-gray-500">从零开始创建一个角色卡</div>
-                                </div>
+                    <div class="choice-modal">
+                        <div class="choice-modal__head">
+                            <h3>添加角色卡</h3>
+                            <button type="button" @click="$emit('close')" class="modal-close-button" aria-label="关闭">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                             </button>
-                            <button @click="$emit('generate')" class="choice-card group">
-                                <div class="choice-card__icon">
-                                    <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 8a3 3 0 11-6 0 3 3 0 016 0zm-3 5c-4 0-7 2-7 5v1h8m5-6v6m-3-3h6"></path>
-                                    </svg>
-                                </div>
-                                <div class="text-left">
-                                    <div class="font-bold">生成角色卡</div>
-                                    <div class="text-xs text-gray-500">使用AI一键生成角色卡</div>
-                                </div>
+                        </div>
+                        <p class="choice-modal__label">创建</p>
+                        <div class="choice-modal__list">
+                            <button type="button" @click="$emit('create')" class="choice-card">
+                                <span class="choice-card__icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg></span>
+                                <span class="choice-card__body"><span class="choice-card__title">新建角色卡</span><span class="choice-card__desc">从零开始创建一个角色卡</span></span>
                             </button>
-                            <label class="choice-card group">
-                                <div class="choice-card__icon">
-                                    <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-                                    </svg>
-                                </div>
-                                <div class="text-left flex-1">
-                                    <div class="font-bold">导入角色卡</div>
-                                    <div class="text-xs text-gray-500">导入 .png 或 .json 文件</div>
-                                </div>
+                            <button type="button" @click="$emit('generate')" class="choice-card">
+                                <span class="choice-card__icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 8a3 3 0 11-6 0 3 3 0 016 0zm-3 5c-4 0-7 2-7 5v1h8m5-6v6m-3-3h6"></path></svg></span>
+                                <span class="choice-card__body"><span class="choice-card__title">生成角色卡</span><span class="choice-card__desc">使用 AI 一键生成角色卡</span></span>
+                            </button>
+                        </div>
+                        <p class="choice-modal__label">导入</p>
+                        <div class="choice-modal__list">
+                            <label class="choice-card">
+                                <span class="choice-card__icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg></span>
+                                <span class="choice-card__body"><span class="choice-card__title">导入角色卡</span><span class="choice-card__desc">导入 .png 或 .json 文件</span></span>
                                 <input type="file" accept=".png,.json" @change="$emit('import-character', $event)" class="hidden">
                             </label>
-                            <label class="choice-card group">
-                                <div class="choice-card__icon">
-                                    <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path>
-                                    </svg>
-                                </div>
-                                <div class="text-left flex-1">
-                                    <div class="font-bold">导入聊天记录</div>
-                                    <div class="text-xs text-gray-500">支持全部分支与聊天数据</div>
-                                </div>
+                            <label class="choice-card">
+                                <span class="choice-card__icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg></span>
+                                <span class="choice-card__body"><span class="choice-card__title">导入聊天记录</span><span class="choice-card__desc">支持全部分支与聊天数据</span></span>
                                 <input type="file" accept=".jsonl" @change="$emit('import-character', $event)" class="hidden">
                             </label>
                         </div>
-                        <button @click="$emit('close')" class="mt-6 w-full py-3 text-red-500 font-medium hover:text-red-600 transition-colors">取消</button>
                     </div>
             </modal-shell>`
     };
@@ -1085,7 +1067,7 @@
         props: { show: Boolean },
         emits: ['decide'],
         template: `
-            <modal-shell v-if="show" overlay-class="z-[90] bg-black/50 backdrop-blur-sm p-4 animate-fade-in"
+            <modal-shell :show="show" overlay-class="z-[90] p-4"
                 panel-class="bg-white rounded-2xl border border-gray-200 w-full max-w-md flex flex-col shadow-2xl transform transition-all scale-100 overflow-hidden">
                     <div class="bg-gradient-to-r from-primary-50 to-blue-50 p-6 border-b border-gray-100">
                         <div class="flex items-center gap-3">
@@ -1132,7 +1114,7 @@
         },
         emits: ['close', 'save', 'update:result-count', 'update:tavily-api-key'],
         template: `
-            <modal-shell v-if="show" overlay-class="z-50 bg-black/50 backdrop-blur-sm p-4 animate-fade-in"
+            <modal-shell :show="show" overlay-class="z-50 p-4"
                 panel-class="bg-white rounded-2xl border border-gray-200 w-full max-w-3xl flex flex-col shadow-2xl max-h-[90vh] overflow-hidden">
                     <modal-header @close="$emit('close')">
                         <div class="flex items-center gap-3">
@@ -1193,7 +1175,7 @@
         },
         emits: ['close', 'save', 'update:name', 'update:role', 'update:content'],
         template: `
-            <modal-shell v-if="show" overlay-class="z-50 bg-black/50 backdrop-blur-sm p-2 md:p-3 animate-fade-in"
+            <modal-shell :show="show" overlay-class="z-50 p-2 md:p-3"
                 panel-class="bg-white rounded-2xl border border-gray-200 w-full max-w-2xl flex flex-col shadow-2xl max-h-[94vh] overflow-hidden">
                     <modal-header @close="$emit('close')">
                         <div class="flex items-center gap-3">
@@ -1257,7 +1239,7 @@
             }
         },
         template: `
-            <modal-shell v-if="show" overlay-class="z-50 bg-black/50 backdrop-blur-sm p-0 md:p-4 animate-fade-in"
+            <modal-shell :show="show" overlay-class="z-50 p-0 md:p-4"
                 panel-class="bg-white md:rounded-2xl border-0 md:border border-gray-200 w-full max-w-2xl h-full md:h-[750px] flex flex-col shadow-2xl overflow-hidden">
                     <div class="p-3 md:p-5 border-b border-gray-100 flex flex-col gap-4 bg-gray-50/80 backdrop-blur-sm flex-shrink-0">
                         <div class="flex justify-between items-center">
@@ -1359,7 +1341,7 @@
             }
         },
         template: `
-            <modal-shell v-if="show" overlay-class="z-50 bg-black/50 backdrop-blur-sm p-2 md:p-3 animate-fade-in"
+            <modal-shell :show="show" overlay-class="z-50 p-2 md:p-3"
                 panel-class="bg-white rounded-2xl border border-gray-200 w-full max-w-lg flex flex-col shadow-2xl max-h-[94vh] overflow-hidden">
                     <modal-header @close="$emit('close')">
                         <div class="flex items-center gap-3">
@@ -1486,6 +1468,10 @@
             updateNumber(field, value) {
                 this.updateField(field, value === '' ? '' : Number(value));
             },
+            formatLogMeta(log) {
+                const time = Number(log?.time) ? new Date(log.time).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }) : '';
+                return [log?.turn ? `第 ${log.turn} 轮` : '', time].filter(Boolean).join(' · ');
+            },
             formatChangeValue(value) {
                 if (value === undefined || value === null || value === '') return '空';
                 if (typeof value !== 'object') return String(value);
@@ -1533,7 +1519,16 @@
             }
         },
         data() {
-            return { protocolCheck: null, protocolCheckTimer: null };
+            return {
+                protocolCheck: null,
+                protocolCheckTimer: null,
+                codeTab: 'html',
+                codeTabs: Object.freeze([
+                    { value: 'html', label: 'HTML' },
+                    { value: 'state', label: '变量 JSON' },
+                    { value: 'schema', label: '变量说明' }
+                ])
+            };
         },
         computed: {
             protocolCheckInput() {
@@ -1560,8 +1555,8 @@
             clearTimeout(this.protocolCheckTimer);
         },
         template: `
-            <modal-shell v-if="show" overlay-class="z-50 bg-black/50 backdrop-blur-sm p-2 md:p-3 animate-fade-in"
-                panel-class="bg-white rounded-2xl border border-gray-200 w-full max-w-4xl flex flex-col shadow-2xl max-h-[94vh] overflow-hidden">
+            <modal-shell :show="show" overlay-class="z-50 p-2 md:p-3"
+                panel-class="bg-white rounded-2xl border border-gray-200 w-full max-w-6xl flex flex-col shadow-2xl max-h-[94vh] overflow-hidden">
                     <modal-header @close="$emit('close')">
                         <div class="flex items-center gap-3">
                             <div class="p-2 bg-primary-50 text-primary-600 rounded-lg">
@@ -1574,32 +1569,39 @@
                         </div>
                     </modal-header>
 
-                    <div class="flex-1 overflow-y-auto custom-scrollbar p-6 bg-gray-50/30 space-y-6">
+                    <div class="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6 space-y-5">
                         <div class="segmented-switch segmented-switch--slim">
                             <div class="segmented-switch__indicator" :class="{ 'is-right': tab !== 'history' }"></div>
                             <button @click="$emit('update:tab', 'history')" class="segmented-switch__option" :class="{ 'is-active': tab === 'history' }"><span>变更记录</span></button>
                             <button @click="$emit('update:tab', 'edit')" class="segmented-switch__option" :class="{ 'is-active': tab === 'edit' }"><span>编辑内容</span></button>
                         </div>
 
-                        <div v-if="tab === 'history'" class="space-y-4">
-                            <div v-if="!(templateData.changeLog || []).length" class="bg-white border border-dashed border-gray-200 rounded-2xl p-8 text-center text-gray-400">暂无变更记录</div>
-                            <div v-else class="space-y-3">
-                                <div v-for="log in (templateData.changeLog || []).slice(0, 1)" :key="log.id" class="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
-                                    <div class="mt-3 space-y-3">
-                                        <div v-for="(change, key) in (log.changes || {})" :key="key" class="rounded-xl border border-gray-100 bg-gray-50/60 p-3">
-                                            <div class="text-xs font-bold text-gray-700 mb-2">{{ key }}</div>
-                                            <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                                <div class="bg-white border border-gray-100 rounded-lg px-3 py-2 text-xs text-gray-600 leading-relaxed"><span class="font-bold text-gray-400">前：</span><span class="whitespace-pre-wrap break-words">{{ formatChangeValue(change && change.from) }}</span></div>
-                                                <div class="bg-white border border-primary-100 rounded-lg px-3 py-2 text-xs text-gray-800 leading-relaxed"><span class="font-bold text-primary-500">后：</span><span class="whitespace-pre-wrap break-words">{{ formatChangeValue(change && change.to) }}</span></div>
-                                            </div>
-                                        </div>
+                        <template v-if="tab === 'history'">
+                            <div v-if="!(templateData.changeLog || []).length" class="empty-state">
+                                <svg fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M12 8v4l2.5 1.5M3.05 11a9 9 0 1 1 .5 4M3 4v5h5"></path>
+                                </svg>
+                                <p>暂无变更记录</p>
+                                <small>变量分析更新这个模板后，最近一次的变化会显示在这里</small>
+                            </div>
+                            <section v-for="log in (templateData.changeLog || []).slice(0, 1)" :key="log.id" class="ui-template-history">
+                                <header class="ui-template-history__meta">
+                                    <span>最近一次变更</span>
+                                    <span>{{ formatLogMeta(log) }}</span>
+                                </header>
+                                <div v-for="(change, key) in (log.changes || {})" :key="key" class="ui-template-history__row">
+                                    <code class="ui-template-history__key">{{ key }}</code>
+                                    <div class="ui-template-history__values">
+                                        <del>{{ formatChangeValue(change && change.from) }}</del>
+                                        <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-label="变为"><path d="M5 12h14m-6-6 6 6-6 6"></path></svg>
+                                        <ins>{{ formatChangeValue(change && change.to) }}</ins>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
+                            </section>
+                        </template>
 
-                        <div v-else class="space-y-6">
-                            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div v-else class="space-y-5">
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
                                 <div>
                                     <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">模板名称</label>
                                     <input :value="templateData.name" @input="updateField('name', $event.target.value)" type="text"
@@ -1620,41 +1622,36 @@
                                 </div>
                             </div>
 
-                            <details class="group bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-                                <summary class="list-none cursor-pointer select-none px-4 py-3 flex items-center justify-between gap-3 hover:bg-gray-50 transition-colors">
-                                    <span class="text-xs font-bold text-gray-500 uppercase tracking-wide">HTML模板</span>
-                                    <span class="flex items-center gap-2 text-[11px] font-bold text-gray-400">
-                                        <span class="group-open:hidden">展开</span><span class="hidden group-open:inline">折叠</span>
-                                        <svg class="w-4 h-4 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                                    </span>
-                                </summary>
-                                <textarea :value="templateData.htmlTemplate" @input="updateField('htmlTemplate', $event.target.value)" rows="22"
-                                    class="w-full bg-white border-0 border-t border-gray-100 rounded-none px-4 py-3 text-gray-800 focus:ring-2 focus:ring-inset focus:ring-primary-500 focus:outline-none font-mono text-sm shadow-inner leading-relaxed resize-y min-h-[460px]" placeholder="<section>...</section>"></textarea>
-                            </details>
-                            <div v-if="protocolCheck" aria-live="polite" class="rounded-xl border px-4 py-3 text-sm" :class="protocolCheck.ok ? 'border-emerald-200 bg-emerald-50/70 text-emerald-700' : 'border-rose-200 bg-rose-50/70 text-rose-700'">
-                                <div class="font-bold">{{ protocolCheck.ok ? protocolCheck.message : '模板协议检查未通过' }}</div>
-                                <div v-if="!protocolCheck.ok" class="mt-1 text-xs whitespace-pre-wrap break-words">{{ protocolCheck.message }}</div>
-                            </div>
-                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                                <div>
-                                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">变量JSON</label>
-                                    <textarea :value="templateData.variableStateText" @input="updateField('variableStateText', $event.target.value)" rows="22"
-                                        class="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-800 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 focus:outline-none text-sm shadow-inner leading-relaxed resize-y min-h-[460px]" placeholder='{"status":"平稳","equipment":[{"slot":"武器","name":"短剑","durability":80}]}'></textarea>
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">变量说明（给AI参考，可选）</label>
-                                    <textarea :value="templateData.variableSchemaText" @input="updateField('variableSchemaText', $event.target.value)" rows="22"
-                                        class="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-800 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 focus:outline-none text-sm shadow-inner leading-relaxed resize-y min-h-[460px]" placeholder="例如：status 表示角色当前身体和情绪状态；location 表示当前场景地点；relationship 表示双方关系变化。"></textarea>
-                                </div>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">原始状态预览</label>
-                                <div class="ui-template-preview w-full bg-white p-0 overflow-visible min-h-[460px]" v-html="previewHtml"></div>
+                            <!-- Code on the left, a live stage on the right (stacked on phones) -->
+                            <div class="ui-template-workspace">
+                                <section class="min-w-0">
+                                    <div class="segmented-switch segmented-switch--compact segmented-switch--three">
+                                        <div class="segmented-switch__indicator" :class="{ 'is-position-2': codeTab === 'state', 'is-position-3': codeTab === 'schema' }"></div>
+                                        <button v-for="option in codeTabs" :key="option.value" type="button" @click="codeTab = option.value"
+                                            class="segmented-switch__option" :class="{ 'is-active': codeTab === option.value }">{{ option.label }}</button>
+                                    </div>
+                                    <textarea v-show="codeTab === 'html'" :value="templateData.htmlTemplate" @input="updateField('htmlTemplate', $event.target.value)"
+                                        class="ui-template-code" spellcheck="false" aria-label="HTML模板" placeholder="<section>...</section>"></textarea>
+                                    <textarea v-show="codeTab === 'state'" :value="templateData.variableStateText" @input="updateField('variableStateText', $event.target.value)"
+                                        class="ui-template-code" spellcheck="false" aria-label="变量JSON" placeholder='{"status":"平稳","equipment":[{"slot":"武器","name":"短剑","durability":80}]}'></textarea>
+                                    <textarea v-show="codeTab === 'schema'" :value="templateData.variableSchemaText" @input="updateField('variableSchemaText', $event.target.value)"
+                                        class="ui-template-code ui-template-code--prose" aria-label="变量说明" placeholder="给 AI 参考，可选。例如：status 表示角色当前身体和情绪状态；location 表示当前场景地点；relationship 表示双方关系变化。"></textarea>
+                                </section>
+                                <section class="ui-template-stage-wrap">
+                                    <div class="ui-template-stage-label">预览<span>使用初始变量</span></div>
+                                    <div class="ui-template-stage"><div class="ui-template-preview" v-html="previewHtml"></div></div>
+                                    <div v-if="protocolCheck" aria-live="polite" class="ui-template-check" :class="protocolCheck.ok ? 'is-ok' : 'is-error'">
+                                        <svg fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+                                            <path :d="protocolCheck.ok ? 'M20 6 9 17l-5-5' : 'M12 8v5m0 3.5h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z'"></path>
+                                        </svg>
+                                        <span>{{ protocolCheck.ok ? protocolCheck.message : '协议检查未通过：' + protocolCheck.message }}</span>
+                                    </div>
+                                </section>
                             </div>
                         </div>
                     </div>
 
-                    <div v-if="tab === 'edit'" class="p-4 md:p-5 border-t border-gray-100 flex justify-end space-x-3 bg-gray-50/80 backdrop-blur-sm flex-shrink-0">
+                    <div v-if="tab === 'edit'" class="p-4 md:p-5 border-t border-gray-100 flex justify-end space-x-3 bg-gray-50/80 flex-shrink-0">
                         <button @click="$emit('close')" class="modal-secondary-button">取消</button>
                         <button @click="$emit('save')" class="modal-primary-button">
                             <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
@@ -1688,7 +1685,7 @@
             }
         },
         template: `
-            <modal-shell v-if="show" overlay-class="z-50 bg-black/50 backdrop-blur-sm p-2 md:p-3 animate-fade-in"
+            <modal-shell :show="show" overlay-class="z-50 p-2 md:p-3"
                 panel-class="bg-white rounded-2xl border border-gray-200 w-full max-w-3xl flex flex-col shadow-2xl max-h-[94vh] overflow-hidden">
                     <modal-header @close="$emit('close')">
                         <div class="flex items-center gap-3">
@@ -1753,11 +1750,11 @@
                                                 class="w-full bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none" placeholder="100">
                                         </div>
                                         <div>
-                                            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">触发概率 (%)</label>
+                                            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">触发概率</label>
                                             <div :class="['flex items-center border rounded-xl transition-all overflow-hidden shadow-sm', entry.useProbability ? 'border-primary-300 ring-2 ring-primary-500/10' : 'border-gray-200 opacity-60']">
                                                 <button @click="updateField('useProbability', !entry.useProbability)"
                                                     :class="['px-3 py-2 transition-colors border-r', entry.useProbability ? 'bg-primary-600 text-white border-primary-600' : 'bg-gray-100 text-gray-400 border-gray-200']">
-                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                                                    <span class="block w-4 h-4 text-sm font-bold leading-4 text-center">%</span>
                                                 </button>
                                                 <input type="number" :value="entry.probability" @input="updateNumber('probability', $event.target.value)" min="0" max="100"
                                                     class="w-full bg-white px-3 py-1.5 text-sm font-bold text-gray-700 focus:outline-none" :disabled="!entry.useProbability" placeholder="100">
@@ -1806,7 +1803,7 @@
         },
         emits: ['close', 'select-all', 'deselect-all', 'toggle', 'confirm'],
         template: `
-            <modal-shell v-if="show" overlay-class="z-[90] bg-black/50 backdrop-blur-sm p-4 animate-fade-in"
+            <modal-shell :show="show" overlay-class="z-[90] p-4"
                 panel-class="bg-white rounded-xl border border-gray-200 w-full max-w-lg flex flex-col shadow-2xl max-h-[80vh] overflow-hidden">
                     <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/80 backdrop-blur-sm flex-shrink-0">
                         <h3 class="text-lg font-bold text-gray-800">选择导出项目</h3>
@@ -1857,26 +1854,22 @@
             ]
         }),
         template: `
-            <modal-shell v-if="show" close-on-backdrop @close="$emit('close')"
-                overlay-class="z-[90] bg-black/50 backdrop-blur-sm p-4 animate-fade-in"
+            <modal-shell :show="show" close-on-backdrop @close="$emit('close')"
+                overlay-class="z-[90] p-4"
                 panel-class="compact-modal-panel">
-                    <div class="p-6">
-                        <h3 class="text-xl font-bold text-gray-900 mb-6 flex items-center">
-                            <svg class="w-6 h-6 mr-2 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-                            导出选项
-                        </h3>
-                        <div class="grid grid-cols-1 gap-3">
-                            <button v-for="option in options" :key="option.type" @click="$emit('export', option.type)" class="choice-card">
-                                <div class="choice-card__icon">
-                                    <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="option.path"></path></svg>
-                                </div>
-                                <div class="flex-1">
-                                    <div class="font-bold text-base mb-0.5">{{ option.title }}</div>
-                                    <div class="text-[11px] text-gray-500">{{ option.description }}</div>
-                                </div>
+                    <div class="choice-modal">
+                        <div class="choice-modal__head">
+                            <h3>导出选项</h3>
+                            <button type="button" @click="$emit('close')" class="modal-close-button" aria-label="关闭">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                             </button>
                         </div>
-                        <button @click="$emit('close')" class="mt-6 w-full py-3 text-red-500 font-medium hover:text-red-600 transition-colors">取消</button>
+                        <div class="choice-modal__list">
+                            <button v-for="option in options" :key="option.type" type="button" @click="$emit('export', option.type)" class="choice-card">
+                                <span class="choice-card__icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="option.path"></path></svg></span>
+                                <span class="choice-card__body"><span class="choice-card__title">{{ option.title }}</span><span class="choice-card__desc">{{ option.description }}</span></span>
+                            </button>
+                        </div>
                     </div>
             </modal-shell>`
     };
@@ -1888,7 +1881,7 @@
         },
         emits: ['confirm', 'cancel'],
         template: `
-            <modal-shell v-if="show" overlay-class="z-[160] bg-black/50 backdrop-blur-sm p-4 animate-fade-in"
+            <modal-shell :show="show" overlay-class="z-[160] p-4"
                 panel-class="bg-white rounded-xl border border-gray-200 w-full max-w-sm flex flex-col shadow-2xl transform transition-all scale-100">
                     <div class="p-6 text-center">
                         <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
@@ -1909,10 +1902,7 @@
     const RetryConfirmModal = {
         props: { state: { type: Object, required: true } },
         template: `
-            <transition enter-active-class="transition duration-300 ease-modal-fade" enter-from-class="opacity-0"
-                enter-to-class="opacity-100" leave-active-class="transition duration-200 ease-in"
-                leave-from-class="opacity-100" leave-to-class="opacity-0">
-                <modal-shell v-if="state.show" overlay-class="z-[200] bg-black/40 backdrop-blur-[2px] px-4 pt-4 pb-20 text-center sm:p-0"
+            <modal-shell :show="state.show" overlay-class="z-[200] px-4 pt-4 pb-20 text-center sm:p-0"
                     panel-class="bg-white rounded-2xl shadow-[0_20px_60px_-10px_rgba(0,0,0,0.15)] transform transition-transform w-full max-w-sm overflow-hidden relative z-10 border border-gray-100 p-6 flex flex-col items-center animate-slide-up">
                         <div class="w-12 h-12 rounded-full bg-yellow-50 flex items-center justify-center mb-4 border border-yellow-100 shadow-sm">
                             <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1925,8 +1915,7 @@
                             <button @click="state.onCancel" class="flex-1 py-2.5 px-4 bg-gray-50 hover:bg-gray-100 text-gray-600 font-bold rounded-xl transition-all border border-gray-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-300 hover:-translate-y-0.5">取消中断</button>
                             <button @click="state.onConfirm" class="flex-1 py-2.5 px-4 bg-primary-600 hover:bg-primary-500 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all focus:outline-none focus:ring-2 focus:ring-primary-400 hover:-translate-y-0.5">立即重试</button>
                         </div>
-                </modal-shell>
-            </transition>`
+            </modal-shell>`
     };
 
     const ContextViewerModal = {
@@ -1939,11 +1928,8 @@
         },
         emits: ['close'],
         template: `
-            <transition enter-active-class="transition-opacity duration-300 ease-modal-fade" enter-from-class="opacity-0"
-                enter-to-class="opacity-100" leave-active-class="transition-opacity duration-200 ease-in"
-                leave-from-class="opacity-100" leave-to-class="opacity-0">
-                <modal-shell v-if="show" close-on-backdrop @close="$emit('close')"
-                    overlay-class="z-[100] bg-gray-900/40 backdrop-blur-sm p-4 sm:p-6"
+            <modal-shell :show="show" close-on-backdrop @close="$emit('close')"
+                overlay-class="z-[100] p-4 sm:p-6"
                     panel-class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl flex flex-col overflow-hidden max-h-[90vh] sm:max-h-[85vh] border border-gray-200/50 relative">
                         <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 flex-shrink-0">
                             <div class="flex items-center space-x-3">
@@ -2012,8 +1998,7 @@
                                 </div>
                             </div>
                         </div>
-                </modal-shell>
-            </transition>`
+            </modal-shell>`
     };
 
     const TokenUsageView = {
@@ -2035,35 +2020,48 @@
             formatAggregate: { type: Function, required: true },
             formatCount: { type: Function, required: true },
             formatTime: { type: Function, required: true },
-            getTypeLabel: { type: Function, required: true },
+            getCategory: { type: Function, required: true },
             getUncachedInput: { type: Function, required: true }
         },
         emits: [
             'menu', 'clear', 'update:filter', 'update:time-filter', 'update:show-time-filter',
             'update:page', 'update:help-topic'
         ],
-        setup() {
+        setup(props) {
+            const filterOptions = Object.freeze([
+                { value: 'all', label: '全部', position: '' },
+                { value: 'chat', label: '主对话', position: 'is-position-2' },
+                { value: 'memory', label: '记忆系统', position: 'is-position-3' },
+                { value: 'variables', label: '变量分析', position: 'is-position-4' }
+            ]);
+            // The meter splits the total into tokens sent fresh, tokens the cache served and tokens returned.
+            const parts = computed(() => [
+                { key: 'input', label: '输入', value: props.stats.inputTokens, reports: props.stats.inputTokensReports },
+                { key: 'cache', label: '缓存', value: props.stats.cacheReadTokens, reports: props.stats.cacheReadTokensReports },
+                { key: 'output', label: '输出', value: props.stats.outputTokens, reports: props.stats.outputTokensReports }
+            ]);
+            const total = computed(() => parts.value.reduce((sum, part) => sum + (part.value || 0), 0));
+            const totalReports = computed(() => parts.value.reduce((sum, part) => sum + (part.reports || 0), 0));
             const formatDuration = (value) => {
-                if (!Number.isFinite(value)) return '--';
+                if (!Number.isFinite(value)) return '';
                 if (value < 1000) return `${Math.round(value)}ms`;
                 return `${Number((value / 1000).toFixed(1))}s`;
             };
             const formatOutputSpeed = (record) => {
                 if (record?.isStream !== true
                     || !Number.isFinite(record?.durationMs) || record.durationMs <= 0
-                    || !Number.isFinite(record?.outputCharacters) || record.outputCharacters <= 0) return '--';
-                return `${Math.round(record.outputCharacters * 1000 / record.durationMs)}字/s`;
+                    || !Number.isFinite(record?.outputCharacters) || record.outputCharacters <= 0) return '';
+                return `${Math.round(record.outputCharacters * 1000 / record.durationMs)} 字/s`;
             };
             return {
+                filterOptions,
                 formatDuration,
                 formatOutputSpeed,
                 formatQuota: quota => `¥${(Math.trunc(quota / 500000 * 10000) / 10000).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`,
-                filterOptions: Object.freeze([
-                    { value: 'all', label: '全部', position: '' },
-                    { value: 'chat', label: '主对话', position: 'is-position-2' },
-                    { value: 'memory', label: '记忆系统', position: 'is-position-3' },
-                    { value: 'variables', label: '变量分析', position: 'is-position-4' }
-                ])
+                parts,
+                total,
+                totalReports,
+                typeLabels: Object.fromEntries(filterOptions.map(option => [option.value, option.label]))
             };
         },
         template: `
@@ -2074,8 +2072,7 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 19V9m5 10V5m5 14v-7m5 7V3M3 21h18"></path>
                         </svg>
                     </template>
-                    <button v-if="historyLength > 0" @click="$emit('clear')"
-                        class="flex-shrink-0 rounded-xl border border-gray-200 bg-white p-2.5 text-red-600 shadow-sm transition-all hover:border-red-100 hover:bg-red-50 active:scale-95"
+                    <button v-if="historyLength > 0" @click="$emit('clear')" class="settings-icon-button text-red-600"
                         title="清空记录" aria-label="清空 Token 用量记录">
                         <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
@@ -2083,7 +2080,7 @@
                     </button>
                 </settings-page-header>
 
-                <div class="mb-4 flex items-center gap-2">
+                <div class="usage-toolbar">
                     <div class="segmented-switch segmented-switch--compact segmented-switch--four min-w-0 flex-1">
                         <div class="segmented-switch__indicator" :class="filterOptions.find(option => option.value === filter)?.position"></div>
                         <button v-for="option in filterOptions" :key="option.value" type="button"
@@ -2092,24 +2089,21 @@
                     </div>
                     <div class="token-usage-time-filter-container relative flex-none">
                         <button type="button" @click="$emit('update:show-time-filter', !showTimeFilter)"
-                            class="flex h-10 w-10 items-center justify-center rounded-xl border shadow-sm transition-all active:scale-95"
-                            :class="timeFilter === 'all' ? 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50 hover:text-gray-700' : 'border-primary-200 bg-primary-50 text-primary-600'"
-                            :title="'时间范围：' + timeFilterLabel" aria-label="筛选 Token 记录时间范围" :aria-expanded="showTimeFilter">
-                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5h16l-6 7v5l-4 2v-7L4 5z"></path>
+                            class="usage-range-button"
+                            aria-label="筛选 Token 记录时间范围" :aria-expanded="showTimeFilter">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24" aria-hidden="true">
+                                <circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path>
                             </svg>
+                            {{ timeFilterLabel }}
                         </button>
-                        <transition enter-active-class="transition duration-150 ease-out" enter-from-class="opacity-0 translate-y-1 scale-95"
-                            enter-to-class="opacity-100 translate-y-0 scale-100" leave-active-class="transition duration-100 ease-in"
-                            leave-from-class="opacity-100 translate-y-0 scale-100" leave-to-class="opacity-0 translate-y-1 scale-95">
-                            <div v-if="showTimeFilter" class="absolute right-0 top-full z-30 mt-2 w-36 origin-top-right rounded-xl border border-gray-200 bg-white p-1.5 shadow-xl ring-1 ring-black/5">
-                                <button v-for="option in timeFilterOptions" :key="option.value" type="button"
-                                    @click="$emit('update:time-filter', option.value); $emit('update:show-time-filter', false)"
-                                    class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition-colors"
-                                    :class="timeFilter === option.value ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-800'">
-                                    <span>{{ option.label }}</span>
-                                    <svg v-if="timeFilter === option.value" class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        <transition name="dropdown">
+                            <div v-if="showTimeFilter" class="usage-range-menu" role="menu">
+                                <button v-for="option in timeFilterOptions" :key="option.value" type="button" role="menuitemradio"
+                                    :aria-checked="timeFilter === option.value" :class="{ 'is-active': timeFilter === option.value }"
+                                    @click="$emit('update:time-filter', option.value); $emit('update:show-time-filter', false)">
+                                    {{ option.label }}
+                                    <svg v-if="timeFilter === option.value" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+                                        <path d="M5 13l4 4L19 7"></path>
                                     </svg>
                                 </button>
                             </div>
@@ -2117,70 +2111,67 @@
                     </div>
                 </div>
 
-                <div class="relative mb-6 flex items-center justify-between gap-4 rounded-2xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
-                    <div class="flex min-w-0 items-center text-sm font-semibold text-gray-500"><span>总用量</span>
-                        <settings-help topic="totalTokens" :open-topic="helpTopic" label="查看总用量说明" icon-class=""
-                            popover-class="token-usage-help-popover" @toggle="$emit('update:help-topic', $event)">
-                            汇总当前类型和时间筛选范围内，输入 Token（包括缓存读取）与输出 Token 的总和。
-                        </settings-help>
+                <section class="summary-card" aria-label="用量概览">
+                    <dl class="summary-facts">
+                        <div>
+                            <dt>
+                                总用量
+                                <settings-help topic="totalTokens" :open-topic="helpTopic" label="查看总用量说明" icon-class=""
+                                    popover-class="token-usage-help-popover" @toggle="$emit('update:help-topic', $event)">
+                                    汇总当前类型和时间筛选范围内，输入 Token（包括缓存读取）与输出 Token 的总和。
+                                </settings-help>
+                            </dt>
+                            <dd>{{ formatAggregate(total, totalReports) }}<small>tokens</small></dd>
+                        </div>
+                        <div><dt>请求</dt><dd>{{ filteredCount }}<small>次</small></dd></div>
+                    </dl>
+                    <div class="usage-meter" aria-hidden="true">
+                        <span v-for="part in parts" :key="part.key" :class="'usage-tone--' + part.key" :style="{ flexGrow: part.value || 0 }"></span>
                     </div>
-                    <div class="flex-shrink-0 whitespace-nowrap font-mono text-xl font-bold tabular-nums text-gray-900">{{ formatAggregate(stats.inputTokens + stats.cacheReadTokens + stats.outputTokens, stats.inputTokensReports + stats.cacheReadTokensReports + stats.outputTokensReports) }}</div>
-                </div>
+                    <ul class="usage-legend">
+                        <li v-for="part in parts" :key="part.key">
+                            <i class="usage-swatch" :class="'usage-tone--' + part.key"></i>{{ part.label }}<b>{{ formatAggregate(part.value, part.reports) }}</b>
+                        </li>
+                    </ul>
+                </section>
 
-                <div class="flex items-center justify-between mb-3">
-                    <h3 class="text-sm font-bold text-gray-700">请求日志</h3>
-                    <span class="text-[11px] text-gray-400">共 {{ filteredCount }} 条</span>
+                <div class="list-heading">
+                    <h3>请求日志</h3>
+                    <span>共 {{ filteredCount }} 条</span>
                 </div>
-                <div v-if="records.length > 0" class="space-y-3">
-                    <article v-for="record in records" :key="record.id"
-                        class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-colors hover:border-gray-300">
-                        <div class="mb-3 min-w-0">
-                            <div class="flex min-w-0 items-center justify-between gap-3">
-                                <span class="min-w-0 flex-1 truncate text-sm text-gray-600" :title="record.model">{{ record.model || '未知模型' }}</span>
-                                 <span class="flex-shrink-0 text-sm font-semibold text-gray-500">{{ getTypeLabel(record.type) }}</span>
-                            </div>
-                            <div class="mt-1.5 flex min-w-0 items-center justify-between gap-3">
-                                <div class="flex min-w-0 items-center gap-3 text-xs text-gray-400">
-                                    <span>耗时 {{ formatDuration(record.durationMs) }}</span>
-                                    <span v-if="record.isStream === true">速度 {{ formatOutputSpeed(record) }}</span>
+                <template v-if="records.length > 0">
+                    <ol class="list-card">
+                        <li v-for="record in records" :key="record.id" class="usage-row">
+                            <div class="usage-row__main">
+                                <div class="usage-row__model" :title="record.model">{{ record.model || '未知模型' }}</div>
+                                <div class="usage-row__meta">
+                                    <span class="usage-type" :class="'usage-type--' + getCategory(record.type)">{{ typeLabels[getCategory(record.type)] }}</span>
+                                    <time>{{ formatTime(record.timestamp) }}</time>
+                                    <span v-if="formatDuration(record.durationMs)">{{ formatDuration(record.durationMs) }}</span>
+                                    <span v-if="formatOutputSpeed(record)">{{ formatOutputSpeed(record) }}</span>
                                 </div>
-                                <time class="flex-shrink-0 text-xs text-gray-400">{{ formatTime(record.timestamp) }}</time>
                             </div>
-                        </div>
-                        <div class="space-y-1.5 rounded-xl border border-gray-100 bg-gray-50/60 px-3 py-2.5">
-                            <div class="flex min-w-0 items-center justify-between gap-3 whitespace-nowrap">
-                                <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500">
-                                    <span class="h-1.5 w-1.5 rounded-full bg-primary-500"></span>输入
-                                </span>
-                                <span class="flex min-w-0 items-center gap-1 font-mono">
-                                    <span class="text-sm font-bold text-gray-800">{{ formatCount(getUncachedInput(record)) }}</span>
-                                    <span v-if="Number(record.cacheReadTokens) > 0"
-                                        class="inline-flex min-w-0 items-center gap-0.5 text-sm font-bold text-gray-500/80"
-                                        title="缓存读取">
-                                        <svg class="h-4 w-4 flex-none" fill="none" stroke="currentColor" aria-hidden="true"><use href="#icon-arrow-down"></use></svg>
-                                        {{ formatCount(record.cacheReadTokens) }}
-                                    </span>
-                                </span>
-                            </div>
-                            <div class="flex min-w-0 items-center justify-between gap-3 whitespace-nowrap">
-                                <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500">
-                                    <span class="h-1.5 w-1.5 rounded-full bg-yellow-400"></span>输出
-                                </span>
-                                <span class="font-mono text-sm font-bold text-gray-800">{{ formatCount(record.outputTokens) }}</span>
-                            </div>
-                            <div v-if="Number.isFinite(record.actualQuota)" class="flex min-w-0 items-center justify-between gap-3 whitespace-nowrap">
-                                <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500">
-                                    <span class="h-1.5 w-1.5 rounded-full bg-green-500"></span>消耗
-                                </span>
-                                <span class="font-mono text-sm font-bold text-gray-800" :title="record.usageGroup ? '计费分组：' + record.usageGroup : ''">{{ formatQuota(record.actualQuota) }}</span>
-                            </div>
-                        </div>
-                    </article>
-                    <pagination-controls :current="page" :total="pageCount" label="Token 记录分页" @change="$emit('update:page', $event)"></pagination-controls>
-                </div>
-                <div v-else class="rounded-2xl border border-dashed border-gray-200 bg-white/60 py-12 text-center">
-                    <div class="text-sm font-medium text-gray-500">{{ historyLength > 0 ? '当前分类还没有记录' : '还没有 Token 用量记录' }}</div>
-                    <div class="mt-1 text-xs text-gray-400">{{ historyLength > 0 ? '可以切换其他分类查看' : '完成一次 API 请求后会显示在这里' }}</div>
+                            <dl class="usage-row__stats">
+                                <div><dt><i class="usage-swatch usage-tone--input"></i>输入</dt><dd>{{ formatCount(getUncachedInput(record)) }}</dd></div>
+                                <div><dt><i class="usage-swatch usage-tone--cache"></i>缓存</dt><dd :class="{ 'is-empty': !(record.cacheReadTokens > 0) }">{{ record.cacheReadTokens > 0 ? formatCount(record.cacheReadTokens) : '—' }}</dd></div>
+                                <div><dt><i class="usage-swatch usage-tone--output"></i>输出</dt><dd>{{ formatCount(record.outputTokens) }}</dd></div>
+                                <div class="usage-row__stat-cost" :title="record.usageGroup ? '计费分组：' + record.usageGroup : ''">
+                                    <dt><i class="usage-swatch usage-tone--cost"></i>消耗</dt>
+                                    <dd :class="{ 'is-empty': !Number.isFinite(record.actualQuota) }">{{ Number.isFinite(record.actualQuota) ? formatQuota(record.actualQuota) : '—' }}</dd>
+                                </div>
+                            </dl>
+                            <span v-if="Number.isFinite(record.actualQuota)" class="usage-row__cost"
+                                :title="'本次消耗' + (record.usageGroup ? '，计费分组：' + record.usageGroup : '')">{{ formatQuota(record.actualQuota) }}</span>
+                        </li>
+                    </ol>
+                    <pagination-controls class="mt-4" :current="page" :total="pageCount" label="Token 记录分页" @change="$emit('update:page', $event)"></pagination-controls>
+                </template>
+                <div v-else class="empty-state">
+                    <svg fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M4 19V9m5 10V5m5 14v-7m5 7V3M3 21h18"></path>
+                    </svg>
+                    <p>{{ historyLength > 0 ? '当前筛选范围还没有记录' : '还没有 Token 用量记录' }}</p>
+                    <small>{{ historyLength > 0 ? '可以切换其他分类或时间范围查看' : '完成一次 API 请求后会显示在这里' }}</small>
                 </div>
             </div>`
     };
@@ -2339,12 +2330,21 @@
                     </div>
                 </div>
 
-                <div v-if="!hasCharacter && templates.length === 0" class="py-24 text-center text-gray-400">请先选择角色卡</div>
-                <div v-else-if="templates.length === 0" class="py-24 text-center text-gray-400">当前没有UI模板</div>
-                <div v-else class="sortable-list">
+                <div v-if="templates.length === 0" class="empty-state">
+                    <svg fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M4 5a2 2 0 012-2h12a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm4 3h8M8 12h8M8 16h5"></path>
+                    </svg>
+                    <p>{{ hasCharacter ? '当前没有UI模板' : '请先选择角色卡' }}</p>
+                    <small>{{ hasCharacter ? '点右上角 + 新建模板，或导入 JSON' : '选择角色卡后可以为它添加专属模板' }}</small>
+                </div>
+                <div v-else class="sortable-list ui-template-list">
                     <div v-for="(template, index) in templates" :key="template.id"
-                        class="sortable-list-item">
+                        class="sortable-list-item" :class="{ 'is-off': template.enabled === false }">
                         <div class="sortable-item-main">
+                            <svg class="w-7 h-7 mr-3 flex-shrink-0 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 5a2 2 0 012-2h12a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm4 3h8M8 12h8M8 16h5"></path>
+                            </svg>
                             <div class="min-w-0">
                                 <div class="sortable-item-heading">
                                     <h3 class="truncate" :title="template.name">{{ template.name }}</h3>
@@ -2353,7 +2353,7 @@
                                         {{ template.scope === 'global' ? '全局' : '绑定' }}
                                     </span>
                                 </div>
-                                <p class="text-xs text-gray-500 mt-1">{{ Object.keys(template.variableState || {}).length }} 个变量 · {{ (template.changeLog || []).length }} 条记录</p>
+                                <p class="text-xs text-gray-500 mt-1 truncate">{{ template.placement === 'bottom' ? '对话底部' : '对话顶部' }} · {{ Object.keys(template.variableState || {}).length }} 个变量 · {{ (template.changeLog || []).length }} 次变更</p>
                             </div>
                         </div>
                         <div class="sortable-item-actions">
@@ -2396,11 +2396,8 @@
             'open-name-editor', 'delete-branch', 'close-name-editor', 'update:name-draft', 'save-name'
         ],
         template: `
-            <transition enter-active-class="transition-opacity duration-300 ease-out" enter-from-class="opacity-0"
-                enter-to-class="opacity-100" leave-active-class="transition-opacity duration-200 ease-in"
-                leave-from-class="opacity-100" leave-to-class="opacity-0">
-                <modal-shell v-if="show" close-on-backdrop @close="$emit('close')"
-                    overlay-class="z-[120] bg-gray-900/40 backdrop-blur-sm p-4 sm:p-6"
+            <modal-shell :show="show" close-on-backdrop @close="$emit('close')"
+                overlay-class="z-[120] p-4 sm:p-6"
                     panel-class="w-full max-w-6xl h-[92vh] sm:h-[88vh] bg-white rounded-2xl shadow-2xl border border-gray-200/70 overflow-hidden flex flex-col">
                         <div class="px-5 sm:px-6 py-4 border-b border-gray-100 bg-white flex items-center justify-between flex-shrink-0">
                             <div class="min-w-0">
@@ -2474,14 +2471,10 @@
                                     class="story-route-delete-button">删除</button>
                             </div>
                         </div>
-                </modal-shell>
-            </transition>
+            </modal-shell>
 
-            <transition enter-active-class="transition-opacity duration-200" enter-from-class="opacity-0"
-                enter-to-class="opacity-100" leave-active-class="transition-opacity duration-150"
-                leave-from-class="opacity-100" leave-to-class="opacity-0">
-                <modal-shell v-if="showNameEditor" close-on-backdrop @close="$emit('close-name-editor')"
-                    overlay-class="z-[180] bg-gray-900/40 backdrop-blur-sm p-4"
+            <modal-shell :show="showNameEditor" close-on-backdrop @close="$emit('close-name-editor')"
+                overlay-class="z-[180] p-4"
                     panel-class="w-full max-w-sm rounded-2xl border border-gray-200 bg-white p-5 shadow-2xl">
                         <h3 class="text-lg font-bold text-gray-800">编辑分支名称</h3>
                         <p class="mt-1 text-sm text-gray-500">名称最多 30 个字。</p>
@@ -2496,8 +2489,7 @@
                             <button @click="$emit('save-name')" :disabled="switching"
                                 class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">保存</button>
                         </div>
-                </modal-shell>
-            </transition>`
+            </modal-shell>`
     };
 
     const CharacterCard = {

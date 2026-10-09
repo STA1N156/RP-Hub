@@ -42,6 +42,7 @@ const {
     generateUUID,
     getApiUsagePayload,
     getImageTagRegex,
+    getToastIcon,
     normalizeApiUsage,
     parseCot,
     stringifyErrorDetail
@@ -198,7 +199,6 @@ const app = createApp({
     setup() {
         const cardUtils = window.RPHubCardUtils;
         const {
-            fontFamilies: fontFamilyOptions,
             fontSizes: fontSizeOptions,
             imageCounts: imageGenCountOptions,
             imageModels: imageModelOptions,
@@ -395,7 +395,7 @@ const app = createApp({
                 if (userInput.value === '') {
                     inputBox.value.style.height = '';
                 } else {
-                    inputBox.value.style.height = Math.min(inputBox.value.scrollHeight, 180) + 'px';
+                    inputBox.value.style.height = inputBox.value.scrollHeight + 'px';
                 }
             }
         };
@@ -581,8 +581,6 @@ const app = createApp({
             uiTemplateAnalysisDepth: 4,
             uiTemplateInjectContext: false,
             uiTemplateMainModelAnalysis: true,
-            fontFamily: 'modern',
-            fontFamilyVersion: 4,
             fontSize: window.innerWidth > 768 ? 16 : 14,
             imageGenKey: '',
             imageStyle: 'vertical',
@@ -601,15 +599,10 @@ const app = createApp({
             : imageStyleOptions);
         const getImageModelName = (value) => (imageModelOptions.find(option => option.value === value)?.label
             || imageModelOptions[0].label).replace(/（[^）]*）$/, '');
-        const normalizeFontFamily = (value) => ['modern', 'serif', 'system'].includes(value) ? value : 'modern';
         const normalizeFontSize = (value) => {
             const size = Number(value);
             return Number.isFinite(size) ? Math.max(12, Math.min(20, Math.round(size))) : 16;
         };
-        const applyFontFamily = (value) => {
-            document.documentElement.dataset.appFont = normalizeFontFamily(value);
-        };
-        watch(() => settings.fontFamily, applyFontFamily, { immediate: true });
 
         const showApiProviderSelector = ref(false);
         const selectedApiProviderId = ref(DEFAULT_API_PROVIDER_ID);
@@ -844,7 +837,7 @@ const app = createApp({
         });
 
         // Watch image gen and model settings for sync
-        watch(() => [settings.imageGenKey, settings.imageModel, settings.imageStyle, settings.customImageArtists, settings.imageGenCount, settings.qualityModel, settings.balancedModel, settings.fastModel, settings.uiTemplateModel, settings.fontFamily, settings.fontFamilyVersion], () => {
+        watch(() => [settings.imageGenKey, settings.imageModel, settings.imageStyle, settings.customImageArtists, settings.imageGenCount, settings.qualityModel, settings.balancedModel, settings.fastModel, settings.uiTemplateModel], () => {
             syncSettingsToGenerator();
         });
 
@@ -1345,10 +1338,9 @@ const app = createApp({
             filteredTokenUsageHistory,
             formatTokenAggregate,
             formatLatestTokenCount,
-            formatLatestUsageCost,
             formatTokenCount,
             formatTokenUsageTime,
-            getTokenUsageTypeLabel,
+            getTokenUsageCategory,
             getUncachedInputTokens,
             recordApiUsage,
             showTokenUsageTimeFilter,
@@ -1752,10 +1744,6 @@ const app = createApp({
                 } else {
                     normalizeApiProviderSettings();
                 }
-                if ((!savedSettings || Number(savedSettings.fontFamilyVersion || 0) < 4) && settings.fontFamily === 'serif') {
-                    settings.fontFamily = 'modern';
-                }
-                settings.fontFamily = normalizeFontFamily(settings.fontFamily);
                 settings.fontSize = normalizeFontSize(settings.fontSize);
                 if (settings.reasoningEffort === 'xhigh') settings.reasoningEffort = 'max';
                 if (!imageModelOptions.some(option => option.value === settings.imageModel)) {
@@ -1766,8 +1754,9 @@ const app = createApp({
                     settings.imageSize = legacySize.includes('横') ? '横图' : legacySize.includes('方') ? '方图' : '竖图';
                 }
                 settings.imageGenCount = Math.min(8, Math.max(2, Math.round(Number(settings.imageGenCount) || 2)));
-                settings.fontFamilyVersion = 4;
-                applyFontFamily(settings.fontFamily);
+                // Fonts are chosen per context now; drop the retired global font setting.
+                delete settings.fontFamily;
+                delete settings.fontFamilyVersion;
                 delete settings.renderLayerLimit;
                 settings.contextSize = MAX_CONTEXT_SIZE;
                 settings.stream = true;
@@ -3126,7 +3115,7 @@ const app = createApp({
         // Toast Notification
         const showToast = (message, type = 'info', duration = 2000) => {
             const id = `${Date.now()}-${toastIdSeed++}`;
-            toasts.value.push({ id, message, type });
+            toasts.value.push({ id, message, type, icon: getToastIcon(message, type) });
             setTimeout(() => {
                 toasts.value = toasts.value.filter(t => t.id !== id);
             }, duration);
@@ -8212,14 +8201,14 @@ const app = createApp({
             tokenUsageHistory, tokenUsagePage, tokenUsagePageCount, tokenUsageFilter, tokenUsageTimeFilter,
             showTokenUsageTimeFilter, tokenUsageTimeFilterOptions, tokenUsageTimeFilterLabel,
             filteredTokenUsageHistory, tokenUsageStats, displayedTokenUsageHistory,
-            latestMainTokenUsage, formatLatestTokenCount, formatLatestUsageCost,
-            getUncachedInputTokens, formatTokenCount, formatTokenAggregate, formatTokenUsageTime, getTokenUsageTypeLabel, clearTokenUsageHistory,
+            latestMainTokenUsage, formatLatestTokenCount,
+            getUncachedInputTokens, formatTokenCount, formatTokenAggregate, formatTokenUsageTime, getTokenUsageCategory, clearTokenUsageHistory,
             storageStats, refreshStorageStats, cleanupUnusedStorage, formatStorageSize,
             showCharacterExportModal, openCharacterExportModal, confirmCharacterExport, // Character Export Modal
             updateModalRef, latestUpdateConfig,
             showConfirmModal, confirmMessage, modelMode, isGeminiModel, isTruncationEnabled, isPresetEnabled, chatModelSlots, selectChatModelSlot, reasoningEffortSlider, reasoningEffortLabel, // Export for template
             isGenerating, isRemoteGenerating, remoteEstimatedTime, isReceiving, isThinking, hasActiveToolInlineWork, isConversationBusy, activeToolContinuationMessageId, activeToolContinuationHasResponse, userInput, pendingCardInteraction, clearPendingCardInteraction, pendingChatImages, pendingChatImageReadCount, isRecognizingImages, requestChatImageSelection, handleChatImageSelection, removePendingChatImage, modelSearchQuery, activeModelTag, modelTags, characterSearchQuery, filteredModels, filteredCharacters,
-            user, settings, apiProviderOptions, selectedApiProvider, isCustomApiProvider, customApiProviderOptions, showApiProviderSelector, selectApiProvider, characters, currentCharacter, currentCharacterIndex, switchingCharacterIndex, chatHistory, displayedChatMessages, handleChatScroll, presets, presetRoleOptions, fontFamilyOptions, fontSizeOptions, availableImageStyleOptions, imageModelOptions, imageSizeOptions, imageGenCountOptions, scopeOptions, uiTemplatePlacementOptions, worldInfoPositionOptions, getPresetRoleLabel, getPresetRoleDisplayLabel, getPresetRoleBadgeClass, getSortableItemKey, regexScripts, worldInfo,
+            user, settings, apiProviderOptions, selectedApiProvider, isCustomApiProvider, customApiProviderOptions, showApiProviderSelector, selectApiProvider, characters, currentCharacter, currentCharacterIndex, switchingCharacterIndex, chatHistory, displayedChatMessages, handleChatScroll, presets, presetRoleOptions, fontSizeOptions, availableImageStyleOptions, imageModelOptions, imageSizeOptions, imageGenCountOptions, scopeOptions, uiTemplatePlacementOptions, worldInfoPositionOptions, getPresetRoleLabel, getPresetRoleDisplayLabel, getPresetRoleBadgeClass, getSortableItemKey, regexScripts, worldInfo,
             activeTools, activeToolAggressivenessOptions: ACTIVE_TOOL_AGGRESSIVENESS_OPTIONS, editingActiveTool, normalizeActiveTools, isWebActiveTool, getActiveToolDisplayDescription, getActiveToolResultCountMin, getActiveToolResultCountMax,
             getToolCallModeText, hasThinkingOrTools, isMessageThinkingOrRunning, isThinkingSummaryOpen, toggleThinkingSummary, markThinkingSummaryDetailOpened, getTimelineSteps,
             isStyleFilterDetailsOpen, toggleStyleFilterDetails, getStyleFilterHitSegments,
@@ -8326,6 +8315,7 @@ const app = createApp({
                 showExportModal.value = false;
                 showToast(`成功导出 ${items.length} 个项目`, 'success');
             },
+
             importPresets: (event) => readJsonFileInput(event, data => {
                 const items = Array.isArray(data) ? data : [data];
                 if (items.length > 0) {

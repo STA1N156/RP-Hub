@@ -69,13 +69,14 @@ RP-Hub/
 ├── assets/
 │   ├── css/
 │   │   ├── styles.css             # Main page styles
-│   │   └── theme.css              # Shared theme for main, workshop, and novel pages
+│   │   └── theme.css              # Shared design tokens (palette, shadows, motion, dark mode)
 │   └── js/
 │       ├── built-in-content.js    # Default presets, mode prompts, artist tags, and announcements
 │       ├── core-utils.js          # Shared utilities, character card handling, and configuration
 │       ├── api-utils.js           # HTTP, streaming, tool calls, and empty-response retries
 │       ├── data-services.js       # Storage, memory, context, branches, and UI state
 │       ├── runtime-services.js    # Message rendering, usage tracking, and storage management
+│       ├── tailwind-theme.js      # Shared Tailwind config; colors read theme.css tokens
 │       ├── theme.js               # Theme persistence and embedded page synchronization
 │       ├── update-check.js        # Optional remote version checks
 │       ├── ui-components.js       # Navigation, selectors, dialogs, and page components

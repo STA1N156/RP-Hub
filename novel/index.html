@@ -9,6 +9,7 @@
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="../assets/js/tailwind-theme.js"></script>
     <!-- Marked for Markdown rendering -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="../assets/js/built-in-content.js"></script>
@@ -19,144 +20,187 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;600;700&family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
     
+    <link rel="stylesheet" href="../assets/css/theme.css">
     <style>
         :root {
             --font-main: 'Noto Serif SC', serif;
             --font-art: 'Ma Shan Zheng', cursive;
+            --paper: #f5f5f0;
+            --ink: #2c2c2c;
+        }
+        :root[data-app-theme="dark"] {
+            --paper: rgb(var(--stone-50));
+            --ink: rgb(var(--stone-800));
+            --surface: 42 39 36; /* warm cards to match the paper */
         }
         body {
             font-family: var(--font-main);
-            background-color: #f5f5f0;
-            color: #2c2c2c;
+            background-color: var(--paper);
+            color: var(--ink);
             overscroll-behavior: none; /* 防止iOS橡皮筋效果 */
+            -webkit-font-smoothing: antialiased;
         }
-        .font-art {
-            font-family: var(--font-art);
-        }
-        
-        /* 滚动条美化 */
+        .font-art { font-family: var(--font-art); }
+
+        /* 滚动条 */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #d1d1c6; border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: #a8a89d; }
+        ::-webkit-scrollbar-thumb { background: rgb(var(--stone-300)); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgb(var(--stone-400)); }
 
-        /* Vue 动画过渡系统 */
-        .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
+        /* Vue 过渡：统一使用 theme.css 的动效曲线，只动 transform/opacity */
+        .fade-enter-active, .fade-leave-active { transition: opacity var(--dur-3) var(--ease-out); }
         .fade-enter-from, .fade-leave-to { opacity: 0; }
 
-        /* 列表动画优化 */
-        .list-move {
-            transition: transform 0.6s cubic-bezier(0.5, 0, 0.2, 1); /* 专门控制位移，确保平滑 */
-        }
-        
+        .list-move,
         .list-enter-active,
         .list-leave-active {
-            transition: all 0.6s cubic-bezier(0.5, 0, 0.2, 1);
+            transition: transform var(--dur-4) var(--ease-out), opacity var(--dur-3) var(--ease-out);
         }
-
         .list-enter-from,
         .list-leave-to {
             opacity: 0;
-            transform: translateY(30px) scale(0.95);
+            transform: translateY(24px) scale(0.96);
         }
-
-        /* 确保离开的元素脱离文档流，以便其他元素可以平滑移动 */
+        /* 离开的元素脱离文档流，其余元素才能平滑补位 */
         .list-leave-active {
             position: absolute;
             left: 1.5rem; /* 对应 px-6 */
             right: 1.5rem;
-            z-index: 0; /* 确保在移动元素下方 */
+            z-index: 0;
             pointer-events: none;
         }
 
-        .pop-enter-active, .pop-leave-active { transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
-        .pop-enter-from, .pop-leave-to { opacity: 0; transform: scale(0.95); }
+        .pop-enter-active { transition: transform var(--dur-3) var(--ease-spring), opacity var(--dur-2) var(--ease-out); }
+        .pop-leave-active { transition: transform var(--dur-2) var(--ease-in), opacity var(--dur-2) var(--ease-in); }
+        .pop-enter-from, .pop-leave-to { opacity: 0; transform: scale(0.94); }
 
-        .tab-enter-active, .tab-leave-active { transition: opacity 0.15s ease; }
-        .tab-enter-from, .tab-leave-to { opacity: 0; }
+        /* 侧栏各 Tab 绝对定位叠放，可以交叉淡入 */
+        .tab-enter-active, .tab-leave-active { transition: opacity var(--dur-2) var(--ease-out), transform var(--dur-3) var(--ease-out); }
+        .tab-enter-from { opacity: 0; transform: translateY(8px); }
+        .tab-leave-to { opacity: 0; }
 
-        /* Tab 滑块动画 */
         .tab-slider {
             position: absolute;
             bottom: 0;
-            height: 2px;
-            background-color: #292524; /* stone-800 */
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             z-index: 10;
+            height: 2px;
+            border-radius: 2px;
+            background-color: rgb(var(--stone-800));
+            transition: left var(--dur-3) var(--ease-out), width var(--dur-3) var(--ease-out);
         }
 
-        /* 章节折叠动画 (Grid 技巧) */
+        /* 章节折叠：展开稍慢、收起更快 */
         .chapter-accordion {
-            /* 折叠动画：较快 */
-            transition: max-height 0.25s cubic-bezier(0.4, 0, 0.2, 1);
             overflow: hidden;
             max-height: 0;
+            transition: max-height var(--dur-2) var(--ease-in-out);
         }
-        .chapter-accordion.expanded {
-            /* 展开动画：保持原速，更平滑 */
-            transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .chapter-accordion-content {
-            transition: opacity 0.35s ease-in-out;
-            opacity: 0;
-        }
-        .chapter-accordion.expanded .chapter-accordion-content {
-            opacity: 1;
-        }
+        .chapter-accordion.expanded { transition: max-height var(--dur-3) var(--ease-out); }
+        .chapter-accordion-content { opacity: 0; transition: opacity var(--dur-3) var(--ease-out); }
+        .chapter-accordion.expanded .chapter-accordion-content { opacity: 1; }
 
-       /* 目录摘要折叠动画 (Grid 技巧) */
-       .summary-accordion {
-           display: grid;
-           grid-template-rows: 0fr;
-           transition: grid-template-rows 0.35s cubic-bezier(0.25, 0.8, 0.25, 1);
-       }
-       .summary-accordion.expanded {
-           grid-template-rows: 1fr;
-       }
-       .summary-accordion > div {
-           overflow: hidden;
-       }
-
-        /* 移动端侧边栏滑出动画 */
-        .slide-over-enter-active, .slide-over-leave-active {
-            transition: transform 0.3s ease-out;
+        /* 目录摘要折叠 (Grid 技巧) */
+        .summary-accordion {
+            display: grid;
+            grid-template-rows: 0fr;
+            transition: grid-template-rows var(--dur-3) var(--ease-out);
         }
-        .slide-over-enter-from, .slide-over-leave-to {
-            transform: translateX(-100%);
-        }
+        .summary-accordion.expanded { grid-template-rows: 1fr; }
+        .summary-accordion > div { overflow: hidden; }
 
-        /* Markdown 样式 */
+        /* 移动端侧边栏滑出 */
+        .slide-over-enter-active { transition: transform var(--dur-3) var(--ease-out); }
+        .slide-over-leave-active { transition: transform var(--dur-2) var(--ease-in); }
+        .slide-over-enter-from, .slide-over-leave-to { transform: translateX(-100%); }
+
+        /* 正文排版 */
         .prose p { margin-bottom: 1.2em; text-indent: 2em; line-height: 1.8; text-align: justify; }
         .prose h1, .prose h2 { text-align: center; margin: 1.5em 0 1em; font-weight: bold; }
-        
-        /* 书评 Markdown 样式优化 */
-        .review-prose p { margin-bottom: 0.8em; text-indent: 0; line-height: 1.6; text-align: left; }
-        .review-prose h3 { font-size: 1em; font-weight: bold; margin-top: 1.2em; margin-bottom: 0.5em; color: #44403c; }
-        .review-prose ul { list-style-type: disc; padding-left: 1.2em; margin-bottom: 0.8em; }
-        .review-prose li { margin-bottom: 0.3em; }
-        .review-prose strong { color: #292524; font-weight: 600; }
 
-        /* 水墨风格笔尖动画 */
+        /* 书评团：三张评审卡，手机端用 Tab 切换 */
+        .review-panel { border: 1px solid rgb(var(--stone-200)); border-radius: 1.25rem; background: var(--paper); box-shadow: var(--shadow-3); }
+        .review-head { display: flex; flex-shrink: 0; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem 1rem 1rem 1.25rem; border-bottom: 1px solid rgb(var(--stone-200)); }
+        .review-start { display: inline-flex; align-items: center; gap: 0.375rem; height: 2.25rem; padding: 0 1rem; border-radius: 999px; background: rgb(var(--stone-fill-800, var(--stone-800))); color: #fff; font-size: 0.8125rem; font-weight: 600; white-space: nowrap; transition: background-color var(--dur-2) ease, transform var(--dur-2) var(--ease-out); }
+        .review-start:hover:not(:disabled) { background: rgb(var(--stone-fill-700, var(--stone-700))); }
+        .review-start:active:not(:disabled) { transform: scale(0.96); }
+        .review-start:disabled { opacity: 0.55; cursor: not-allowed; }
+        .review-close { padding: 0.5rem; border-radius: 999px; color: rgb(var(--stone-400)); transition: color var(--dur-2) ease, background-color var(--dur-2) ease; }
+        .review-close:hover { background: rgb(var(--stone-200) / 0.6); color: rgb(var(--stone-700)); }
+        .review-tabs { position: relative; display: flex; flex-shrink: 0; border-bottom: 1px solid rgb(var(--stone-200)); }
+        .review-tab { display: inline-flex; flex: 1; align-items: center; justify-content: center; gap: 0.375rem; padding: 0.75rem 0; color: rgb(var(--stone-400)); font-size: 0.8125rem; font-weight: 700; transition: color var(--dur-2) ease; }
+        .review-tab.is-active { color: rgb(var(--stone-800)); }
+        .review-card { overflow: hidden; border: 1px solid rgb(var(--stone-200)); border-radius: 1rem; background: rgb(var(--surface)); }
+        .review-card__head { display: flex; flex-shrink: 0; align-items: center; gap: 0.75rem; padding: 0.875rem 1rem; border-bottom: 1px solid rgb(var(--stone-500) / 0.14); }
+        .review-card__head h4 { color: rgb(var(--stone-800)); font-size: 0.9375rem; font-weight: 700; }
+        .review-card__head p { margin-top: 0.125rem; color: rgb(var(--stone-500)); font-size: 0.75rem; }
+        .review-avatar { display: flex; width: 2.25rem; height: 2.25rem; flex-shrink: 0; align-items: center; justify-content: center; border-radius: 0.75rem; }
+        .review-card__body { flex: 1; min-height: 0; overflow-y: auto; padding: 1rem 1.125rem 1.25rem; }
+        .review-empty { display: flex; height: 100%; align-items: center; justify-content: center; padding: 2rem 1rem; color: rgb(var(--stone-400)); font-size: 0.8125rem; text-align: center; }
+        .review-skeleton { display: grid; gap: 0.75rem; }
+        .review-skeleton span { height: 0.75rem; border-radius: 999px; background: rgb(var(--stone-500) / 0.16); animation: review-pulse 1.4s ease-in-out infinite; }
+        .review-skeleton span:nth-child(1) { width: 38%; height: 0.875rem; margin-bottom: 0.25rem; }
+        .review-skeleton span:nth-child(3) { width: 92%; }
+        .review-skeleton span:nth-child(4) { width: 96%; }
+        .review-skeleton span:nth-child(5) { width: 64%; }
+        @keyframes review-pulse { 50% { opacity: 0.45; } }
+        .review-prose { color: rgb(var(--stone-600)); font-size: 0.9375rem; line-height: 1.75; }
+        .review-prose > :first-child { margin-top: 0; }
+        .review-prose p { margin-bottom: 0.75em; text-indent: 0; line-height: 1.75; text-align: left; }
+        .review-prose :is(h1, h2, h3, h4) { margin: 1.25em 0 0.5em; color: rgb(var(--stone-800)); font-size: 1em; font-weight: 700; }
+        .review-prose ul { list-style-type: disc; padding-left: 1.2em; margin-bottom: 0.75em; }
+        .review-prose li { margin-bottom: 0.3em; }
+        .review-prose strong { color: rgb(var(--stone-800)); font-weight: 600; }
+
+        /* 章末评论区：浅底和分隔线用半透明石色，深色卡片上也看得清 */
+        .comment-section { margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid rgb(var(--stone-200)); line-height: 1.6; }
+        .comment-section__head { display: flex; width: 100%; align-items: center; justify-content: space-between; margin-bottom: 0.25rem; user-select: none; }
+        .comment-section__title { display: inline-flex; align-items: center; gap: 0.5rem; color: rgb(var(--stone-800)); font-size: 1.0625rem; font-weight: 700; }
+        .comment-count { padding: 0 0.5rem; border-radius: 999px; background: rgb(var(--stone-500) / 0.1); color: rgb(var(--stone-500)); font-size: 0.75rem; font-weight: 600; line-height: 1.375rem; }
+        .comment-section__toggle { display: inline-flex; align-items: center; gap: 0.25rem; color: rgb(var(--stone-400)); font-size: 0.8125rem; transition: color var(--dur-2) ease; }
+        .comment-section__head:hover .comment-section__toggle { color: rgb(var(--stone-600)); }
+        .comment { display: flex; gap: 0.75rem; padding: 1rem 0; }
+        .comment + .comment { border-top: 1px solid rgb(var(--stone-500) / 0.14); }
+        .comment-avatar { display: flex; width: 2.25rem; height: 2.25rem; flex-shrink: 0; align-items: center; justify-content: center; overflow: hidden; border-radius: 999px; background: rgb(var(--stone-500) / 0.12); color: rgb(var(--stone-500)); font-size: 0.8125rem; font-weight: 700; }
+        .comment-head { display: flex; align-items: center; gap: 0.375rem; min-width: 0; line-height: 1.25rem; }
+        .comment-name { overflow: hidden; color: rgb(var(--stone-700)); font-size: 0.8125rem; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+        .comment-level, .comment-hot { flex-shrink: 0; padding: 0 0.3125rem; border-radius: 0.3125rem; font-size: 0.6875rem; line-height: 1.125rem; }
+        .comment-level { border: 1px solid rgb(var(--stone-200)); color: rgb(var(--stone-400)); }
+        .comment-hot { background: rgb(var(--red-500) / 0.12); color: rgb(var(--red-text-600, var(--red-600))); font-weight: 700; }
+        .comment-floor { flex-shrink: 0; margin-left: auto; color: rgb(var(--stone-300)); font-size: 0.75rem; }
+        .comment-text { margin-top: 0.25rem; color: rgb(var(--stone-700)); font-size: 0.9375rem; line-height: 1.7; }
+        .comment-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.875rem; margin-top: 0.375rem; color: rgb(var(--stone-400)); font-size: 0.75rem; }
+        .comment-author-liked { display: inline-flex; align-items: center; gap: 0.25rem; color: rgb(var(--stone-500)); }
+        .comment-author-liked svg { color: rgb(var(--red-500)); }
+        .comment-like { display: inline-flex; align-items: center; gap: 0.25rem; margin-left: auto; padding: 0.125rem 0.5rem; border-radius: 999px; transition: color var(--dur-2) ease, background-color var(--dur-2) ease; }
+        .comment-like:hover { background: rgb(var(--stone-500) / 0.1); color: rgb(var(--stone-600)); }
+        .comment-like.is-liked { color: rgb(var(--red-500)); }
+        .comment-replies { margin-top: 0.75rem; padding: 0 0.875rem; border-radius: 0.75rem; background: rgb(var(--stone-500) / 0.07); }
+        .comment-replies .comment { gap: 0.5rem; padding: 0.75rem 0; }
+        .comment-replies .comment-avatar { width: 1.5rem; height: 1.5rem; background: rgb(var(--stone-500) / 0.16); font-size: 0.6875rem; }
+        .comment-replies .comment-text { margin-top: 0.125rem; font-size: 0.875rem; }
+        .comment-reply-to { flex-shrink: 0; color: rgb(var(--stone-400)); font-size: 0.75rem; }
+        .comment-reply-to b { color: rgb(var(--stone-500)); }
+        .comment-empty { padding: 1rem 0; color: rgb(var(--stone-400)); font-size: 0.8125rem; text-align: center; }
+
+        /* 水墨笔尖 */
         .quill-pen-svg {
             width: 100px;
             height: 100px;
             overflow: visible;
-            filter: drop-shadow(0 4px 3px rgba(0,0,0,0.05));
+            filter: drop-shadow(0 4px 3px rgba(0, 0, 0, 0.05));
         }
         .quill-group {
             transform-origin: 50% 90%;
             animation: write-complex 3s ease-in-out infinite;
         }
-        .quill-feather {
-            fill: #2c2c2c;
-        }
+        .quill-feather, .ink-splash { fill: var(--ink); }
         .quill-stem {
-            stroke: rgba(255,255,255,0.15);
+            stroke: rgba(255, 255, 255, 0.15);
             stroke-width: 1.5;
             stroke-linecap: round;
             fill: none;
         }
-        
         @keyframes write-complex {
             0% { transform: rotate(-10deg) translateY(0) scale(1); }
             15% { transform: rotate(5deg) translateY(-4px) scale(1.02); } /* 提笔 */
@@ -169,48 +213,40 @@
             90% { transform: rotate(2deg) translateY(-6px) scale(1.05); }
             100% { transform: rotate(-10deg) translateY(0) scale(1); }
         }
-
         .ink-splash {
-            fill: #2c2c2c;
             opacity: 0;
             animation: ink-splash 3s infinite;
         }
-        
         @keyframes ink-splash {
             0%, 70% { transform: translate(50px, 90px) scale(0); opacity: 0; }
             75% { opacity: 0.6; }
-            85% { transform: translate(50px, 110px) scale(1.2); opacity: 0; }
-            100% { transform: translate(50px, 110px) scale(1.2); opacity: 0; }
+            85%, 100% { transform: translate(50px, 110px) scale(1.2); opacity: 0; }
         }
 
-        /* 卡片悬浮特效 */
-        .hover-card { transition: all 0.2s ease; }
-        .hover-card:hover { transform: translateY(-1px); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
-        
-        /* 通用图标样式 */
+        /* 卡片悬浮 */
+        .hover-card { transition: transform var(--dur-2) var(--ease-out), box-shadow var(--dur-2) var(--ease-out), border-color var(--dur-2) var(--ease-out); }
+        .hover-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); }
+
         .icon { width: 1.2em; height: 1.2em; fill: currentColor; display: inline-block; vertical-align: middle; }
 
-        /* Toast 提示动画 */
-        .toast-enter-active, .toast-leave-active {
-            transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
-        }
-        .toast-enter-from, .toast-leave-to {
-            opacity: 0;
-            transform: translateY(-20px) scale(0.95);
+        /* 手机端侧边栏默认收起：写在这里而不是依赖运行时生成的类，首帧就不会先展开再收回 */
+        @media (max-width: 767px) {
+            .novel-sidebar:not(.is-open) { transform: translateX(-100%); }
         }
     </style>
-    <link rel="stylesheet" href="../assets/css/theme.css">
 </head>
 <body class="h-screen flex flex-col md:flex-row overflow-hidden selection:bg-stone-300 selection:text-stone-900">
     <div id="app" class="w-full h-full flex relative">
         
         <!-- Toast 提示 -->
-        <transition name="toast">
-            <div v-if="toast.show" class="fixed top-5 left-1/2 -translate-x-1/2 bg-white text-stone-700 px-8 py-4 rounded-full shadow-2xl border border-stone-200/80 z-[100] flex items-center gap-4 w-auto max-w-[90vw]">
-                <svg class="icon w-6 h-6 shrink-0" :class="toast.iconColor" viewBox="0 0 24 24" v-html="toast.icon"></svg>
-                <span class="font-semibold text-base whitespace-nowrap overflow-hidden text-ellipsis">{{ toast.message }}</span>
-            </div>
-        </transition>
+        <div class="fixed top-5 left-1/2 -translate-x-1/2 z-[100] pointer-events-none">
+            <transition name="toast">
+                <div v-if="toast.show" role="status" :class="'toast-item toast-item--' + toast.type">
+                    <span class="toast-icon" aria-hidden="true"><svg viewBox="0 0 24 24" v-html="toast.icon"></svg></span>
+                    <span class="toast-text" :title="toast.message">{{ toast.message }}</span>
+                </div>
+            </transition>
+        </div>
 
         <!-- 移动端顶部导航栏 -->
         <div class="md:hidden absolute top-0 left-0 w-full h-14 bg-[#e8e8e3] border-b border-[#d4d4ce] flex justify-between items-center px-4 z-30 shadow-sm">
@@ -227,8 +263,8 @@
         <div v-if="mobileSidebarOpen" @click="mobileSidebarOpen = false" class="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 md:hidden transition-opacity"></div>
 
         <!-- 侧边栏 (响应式) -->
-        <aside class="fixed md:static inset-y-0 left-0 w-5/6 md:w-96 bg-[#e8e8e3] border-r border-[#d4d4ce] flex flex-col shadow-2xl z-50 transform transition-transform duration-300 md:transform-none rounded-r-3xl md:rounded-none overflow-hidden"
-               :class="{'translate-x-0': mobileSidebarOpen, '-translate-x-full': !mobileSidebarOpen && isMobile}">
+        <aside class="novel-sidebar fixed md:static inset-y-0 left-0 w-5/6 md:w-96 bg-[#e8e8e3] border-r border-[#d4d4ce] flex flex-col shadow-2xl z-50 transform transition-transform duration-300 md:transform-none rounded-r-3xl md:rounded-none overflow-hidden"
+               :class="{ 'is-open': mobileSidebarOpen }">
             
             <!-- 侧边栏头部 (仅桌面端显示) -->
             <div class="hidden md:flex p-5 border-b border-[#d4d4ce] justify-between items-center bg-[#e0e0db] shrink-0">
@@ -594,99 +630,67 @@
                                         <div v-html="renderChapterContent(chapter, index)"></div>
                                         
                                         <!-- 评论区 -->
-                                        <div v-if="(chapter.comments && chapter.comments.length > 0) || chapter.isGeneratingComments" class="mt-12 pt-8 border-t border-stone-100">
-                                            <div @click="toggleChapterComments(index)" class="flex items-center justify-between cursor-pointer group select-none mb-4">
-                                                <h3 class="text-lg font-bold text-stone-700 flex items-center gap-2">
-                                                    <svg class="icon w-5 h-5" viewBox="0 0 24 24"><path d="M21.99 4c0-1.1-.89-2-1.99-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14l4 4-.01-18zM18 14H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg>
-                                                    本章书评 <span class="text-xs font-normal text-stone-400 ml-2" v-if="chapter.comments">({{ chapter.comments.length }})</span>
-                                                </h3>
-                                                <div class="flex items-center gap-2 text-stone-400 group-hover:text-stone-600 transition-colors">
-                                                    <span v-if="chapter.isGeneratingComments" class="text-sm flex items-center gap-1.5">
-                                                        <svg class="icon w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24"><path d="M12 4V2A10 10 0 0 0 2 12h2a8 8 0 0 1 8-8z"/></svg>
-                                                        生成中...
-                                                    </span>
-                                                    <span class="text-sm">{{ chapter.showComments ? '收起' : '展开' }}</span>
+                                        <div v-if="(chapter.comments && chapter.comments.length > 0) || chapter.isGeneratingComments" class="comment-section">
+                                            <button type="button" @click="toggleChapterComments(index)" class="comment-section__head">
+                                                <span class="comment-section__title">
+                                                    本章书评<span v-if="chapter.comments" class="comment-count">{{ chapter.comments.length }}</span>
+                                                </span>
+                                                <span class="comment-section__toggle">
+                                                    <span v-if="chapter.isGeneratingComments" class="flex items-center gap-1.5"><svg class="icon w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24"><path d="M12 4V2A10 10 0 0 0 2 12h2a8 8 0 0 1 8-8z"/></svg>生成中...</span>
+                                                    <span v-else>{{ chapter.showComments ? '收起' : '展开' }}</span>
                                                     <svg class="icon w-4 h-4 transition-transform duration-300" :class="{'rotate-180': chapter.showComments}" viewBox="0 0 24 24"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
-                                                </div>
-                                            </div>
+                                                </span>
+                                            </button>
 
                                             <transition name="fade">
-                                                <div v-if="chapter.showComments" class="space-y-4">
-                                                    <div v-for="(comment, cIndex) in chapter.comments" :key="cIndex" class="flex gap-3 group/comment">
-                                                        <!-- 头像 -->
-                                                        <div class="w-8 h-8 rounded-full bg-stone-200 flex items-center justify-center text-stone-500 text-xs font-bold shrink-0 overflow-hidden">
-                                                            <img v-if="comment.avatar" :src="comment.avatar" class="w-full h-full object-cover opacity-80" :alt="comment.username">
+                                                <div v-if="chapter.showComments">
+                                                    <div v-for="(comment, cIndex) in chapter.comments" :key="cIndex" class="comment">
+                                                        <div class="comment-avatar">
+                                                            <img v-if="comment.avatar" :src="comment.avatar" class="w-full h-full object-cover" :alt="comment.username">
                                                             <span v-else>{{ comment.username ? comment.username[0] : '?' }}</span>
                                                         </div>
-                                                        
-                                                        <div class="flex-1 space-y-1">
-                                                            <!-- 用户名行 -->
-                                                            <div class="flex items-center justify-between">
-                                                                <div class="flex items-center gap-2">
-                                                                    <span class="text-xs font-bold text-stone-600">{{ comment.username }}</span>
-                                                                    <span class="text-[10px] px-1 rounded border border-stone-200 text-stone-400">Lv.{{ comment.level || Math.floor(Math.random() * 10) + 1 }}</span>
-                                                                    <span v-if="cIndex === 0" class="text-[10px] bg-red-100 text-red-500 px-1 rounded font-bold">热评</span>
-                                                                </div>
-                                                                <span class="text-[10px] text-stone-300">{{ cIndex + 1 }}L</span>
+                                                        <div class="flex-1 min-w-0">
+                                                            <div class="comment-head">
+                                                                <span class="comment-name">{{ comment.username }}</span>
+                                                                <span class="comment-level">Lv.{{ comment.level || Math.floor(Math.random() * 10) + 1 }}</span>
+                                                                <span v-if="cIndex === 0" class="comment-hot">热评</span>
+                                                                <span class="comment-floor">{{ cIndex + 1 }}L</span>
                                                             </div>
-                                                            
-                                                            <!-- 内容 -->
-                                                            <div class="text-sm text-stone-700 leading-relaxed">
-                                                                {{ comment.content }}
-                                                            </div>
-                                                            
-                                                            <!-- 底部信息 -->
-                                                            <div class="flex items-center justify-between text-[10px] text-stone-400 pt-1">
-                                                                <div class="flex items-center gap-2">
-                                                                    <span>{{ comment.time || '刚刚' }}</span>
-                                                                    <span v-if="comment.isLiked" class="text-stone-500 flex items-center gap-0.5 transition-all">
-                                                                         <svg class="w-3 h-3 text-red-500 fill-current" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-                                                                         作者赞过
-                                                                    </span>
-                                                                </div>
-                                                                <div class="flex items-center gap-4">
-                                                                    <span>IP属地：{{ comment.location || '未知' }}</span>
-                                                                    <div @click.stop="likeComment(index, cIndex)"
-                                                                         class="flex items-center gap-1 cursor-pointer transition-colors select-none"
-                                                                         :class="comment.isLiked ? 'text-red-500' : 'hover:text-stone-600'">
-                                                                        <svg class="icon w-3 h-3" viewBox="0 0 24 24"><path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.15L14.17 1 7.59 7.59C7.22 7.95 7 8.48 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-1.91l-.01-.01L23 10z"/></svg>
-                                                                        {{ comment.likes || 0 }}
-                                                                    </div>
-                                                                </div>
+                                                            <div class="comment-text">{{ comment.content }}</div>
+                                                            <div class="comment-foot">
+                                                                <span>{{ comment.time || '刚刚' }}</span>
+                                                                <span>IP属地：{{ comment.location || '未知' }}</span>
+                                                                <span v-if="comment.isLiked" class="comment-author-liked">
+                                                                    <svg class="icon w-3 h-3" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>作者赞过
+                                                                </span>
+                                                                <button type="button" @click.stop="likeComment(index, cIndex)" class="comment-like" :class="{ 'is-liked': comment.isLiked }">
+                                                                    <svg class="icon w-3.5 h-3.5" viewBox="0 0 24 24"><path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.15L14.17 1 7.59 7.59C7.22 7.95 7 8.48 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-1.91l-.01-.01L23 10z"/></svg>{{ comment.likes || 0 }}
+                                                                </button>
                                                             </div>
 
                                                             <!-- 楼中楼 (子评论) -->
-                                                            <div v-if="comment.replies && comment.replies.length > 0" class="mt-3 bg-stone-100/50 rounded-lg p-3 space-y-3">
-                                                                <div v-for="(reply, rIndex) in comment.replies" :key="rIndex" class="flex gap-2">
-                                                                    <div class="w-6 h-6 rounded-full bg-stone-200 flex items-center justify-center text-stone-500 text-[10px] font-bold shrink-0 overflow-hidden">
-                                                                        <span>{{ reply.username ? reply.username[0] : '?' }}</span>
-                                                                    </div>
-                                                                    <div class="flex-1 space-y-0.5">
-                                                                        <div class="flex items-center gap-2">
-                                                                            <span class="text-xs font-bold text-stone-600">{{ reply.username }}</span>
-                                                                            <span v-if="reply.targetUser" class="text-[10px] text-stone-400">回复 <span class="text-stone-500 font-bold">@{{ reply.targetUser }}</span></span>
+                                                            <div v-if="comment.replies && comment.replies.length > 0" class="comment-replies">
+                                                                <div v-for="(reply, rIndex) in comment.replies" :key="rIndex" class="comment">
+                                                                    <div class="comment-avatar">{{ reply.username ? reply.username[0] : '?' }}</div>
+                                                                    <div class="flex-1 min-w-0">
+                                                                        <div class="comment-head">
+                                                                            <span class="comment-name">{{ reply.username }}</span>
+                                                                            <span v-if="reply.targetUser" class="comment-reply-to">回复 <b>@{{ reply.targetUser }}</b></span>
                                                                         </div>
-                                                                        <div class="text-xs text-stone-700 leading-relaxed">
-                                                                            {{ reply.content }}
-                                                                        </div>
-                                                                        <div class="flex items-center justify-between text-[10px] text-stone-400 pt-0.5">
+                                                                        <div class="comment-text">{{ reply.content }}</div>
+                                                                        <div class="comment-foot">
                                                                             <span>{{ reply.time || '刚刚' }}</span>
-                                                                            <div class="flex items-center gap-3">
-                                                                                <span>IP属地：{{ reply.location || '未知' }}</span>
-                                                                                <div @click.stop="likeReply(index, cIndex, rIndex)"
-                                                                                     class="flex items-center gap-1 cursor-pointer transition-colors select-none"
-                                                                                     :class="reply.isLiked ? 'text-red-500' : 'hover:text-stone-600'">
-                                                                                    <svg class="icon w-2.5 h-2.5" viewBox="0 0 24 24"><path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.15L14.17 1 7.59 7.59C7.22 7.95 7 8.48 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-1.91l-.01-.01L23 10z"/></svg>
-                                                                                    {{ reply.likes || 0 }}
-                                                                                </div>
-                                                                            </div>
+                                                                            <span>IP属地：{{ reply.location || '未知' }}</span>
+                                                                            <button type="button" @click.stop="likeReply(index, cIndex, rIndex)" class="comment-like" :class="{ 'is-liked': reply.isLiked }">
+                                                                                <svg class="icon w-3 h-3" viewBox="0 0 24 24"><path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.15L14.17 1 7.59 7.59C7.22 7.95 7 8.48 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-1.91l-.01-.01L23 10z"/></svg>{{ reply.likes || 0 }}
+                                                                            </button>
                                                                         </div>
                                                                     </div>
                                                                 </div>
                                                             </div>
                                                         </div>
                                                     </div>
-                                                    <div v-if="chapter.comments && chapter.comments.length === 0 && !chapter.isGeneratingComments" class="text-center text-stone-400 text-xs py-4">
+                                                    <div v-if="chapter.comments && chapter.comments.length === 0 && !chapter.isGeneratingComments" class="comment-empty">
                                                         暂无评论，快来抢沙发~
                                                     </div>
                                                 </div>
@@ -856,109 +860,54 @@
         </transition>
         <transition name="pop">
             <div v-if="showReviewModal" class="fixed inset-0 z-[80] flex items-center justify-center p-2 md:p-4" @click.self="showReviewModal = false">
-                <div class="app-modal-panel bg-[#f5f5f0] rounded-2xl shadow-2xl w-[95%] md:w-full max-w-6xl h-[92vh] flex flex-col overflow-hidden animate-pop-in border border-stone-200">
+                <div class="review-panel app-modal-panel w-[95%] md:w-full max-w-6xl h-[92vh] flex flex-col overflow-hidden animate-pop-in">
                     <!-- 弹窗头部 -->
-                    <div class="px-4 py-3 border-b border-[#d4d4ce] bg-[#e0e0db] flex justify-between items-center shrink-0">
-                        <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 bg-stone-800 rounded-lg flex items-center justify-center text-white">
-                                <svg class="icon w-5 h-5" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
-                            </div>
-                            <div>
-                                <h3 class="text-lg font-bold text-stone-800 font-art">书评团</h3>
-                            </div>
+                    <div class="review-head">
+                        <div class="min-w-0">
+                            <h3 class="font-art text-2xl leading-none text-stone-800">书评团</h3>
+                            <p class="mt-1.5 hidden truncate text-xs text-stone-500 sm:block">三位读者通读全书后，各写一份点评</p>
                         </div>
-                        <div class="flex items-center gap-3">
-                            <button @click="startBookReview" :disabled="isReviewing"
-                                    class="px-4 py-2 bg-stone-800 text-white text-xs rounded-lg hover:bg-stone-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2 shadow-lg">
+                        <div class="flex shrink-0 items-center gap-1.5">
+                            <button @click="startBookReview" :disabled="isReviewing" class="review-start">
                                 <svg v-if="isReviewing" class="icon w-4 h-4 animate-spin" viewBox="0 0 24 24"><path d="M12 4V2A10 10 0 0 0 2 12h2a8 8 0 0 1 8-8z"/></svg>
-                                <svg v-else class="icon w-4 h-4" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                                <svg v-else-if="hasReviewed" class="icon w-4 h-4" viewBox="0 0 24 24"><path d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+                                <svg v-else class="icon w-4 h-4" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 14v-2.47l6.88-6.88c.2-.2.51-.2.71 0l1.77 1.77c.2.2.2.51 0 .71L8.47 14H6zm12 0h-7.5l2-2H18v2z"/></svg>
                                 {{ isReviewing ? '评审中...' : (hasReviewed ? '重新评审' : '开始评审') }}
                             </button>
-                            <button @click="showReviewModal = false" class="text-stone-400 hover:text-stone-600 p-1.5 rounded-full hover:bg-stone-200/50 transition-colors">
-                                <svg class="icon w-6 h-6" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                            <button @click="showReviewModal = false" class="review-close" title="关闭">
+                                <svg class="icon w-5 h-5" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
                             </button>
                         </div>
                     </div>
-                    
-                    <!-- 弹窗内容区：三栏布局 -->
-                    <div class="flex-1 overflow-hidden flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-[#d4d4ce] bg-[#f5f5f0]">
-                        <!-- 移动端 Tab 栏 (仅小屏显示) -->
-                        <div class="md:hidden flex border-b border-[#d4d4ce] bg-white shrink-0 relative">
-                            <button v-for="tab in reviewTabs" :key="tab.id"
-                                    :ref="el => { if(el) reviewTabRefs[tab.id] = el }"
-                                    @click="currentReviewTab = tab.id"
-                                    class="flex-1 py-2 flex items-center justify-center gap-2 transition-colors relative">
-                                <div class="w-8 h-8 rounded-full flex items-center justify-center border transition-transform duration-300"
-                                     :class="[tab.bgColor, tab.borderColor, currentReviewTab === tab.id ? 'scale-110 shadow-sm' : 'opacity-70 grayscale']">
-                                    <svg class="icon w-5 h-5" :class="tab.iconColor" viewBox="0 0 24 24" v-html="tab.icon"></svg>
-                                </div>
-                                <span class="text-xs font-bold" :class="currentReviewTab === tab.id ? 'text-stone-800' : 'text-stone-400'">{{ tab.name }}</span>
-                            </button>
-                            <div class="tab-slider" :style="reviewTabSliderStyle"></div>
-                        </div>
 
-                        <!-- 1. 普通大众读者 -->
-                        <div class="flex-1 flex flex-col bg-white/40 min-h-0 hover:bg-white/80 transition-all duration-300 group/col"
-                             :class="{'hidden md:flex': currentReviewTab !== 'public'}">
-                            <div class="hidden md:flex p-3 border-b border-stone-100 bg-white/60 group-hover/col:bg-white/90 transition-colors items-center gap-3 shrink-0">
-                                <div class="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center shadow-sm border border-orange-200 group-hover/col:scale-110 transition-transform duration-300">
-                                    <svg class="icon w-6 h-6 text-orange-600" viewBox="0 0 24 24"><path d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z"/></svg>
-                                </div>
-                                <div>
-                                    <h4 class="font-bold text-stone-800 text-sm">吃瓜群众</h4>
-                                    <p class="text-[10px] text-stone-500">关注爽点、代入感、是否无聊</p>
-                                </div>
-                            </div>
-                            <div class="flex-1 overflow-y-auto p-3 custom-scrollbar">
-                                <div v-if="reviewStatus.public === 'loading'" class="flex flex-col items-center justify-center h-full text-stone-400 gap-2">
-                                    <svg class="icon w-8 h-8 animate-spin text-orange-400" viewBox="0 0 24 24"><path d="M12 4V2A10 10 0 0 0 2 12h2a8 8 0 0 1 8-8z"/></svg>
-                                </div>
-                                <div v-else-if="reviews.public" class="review-prose text-base text-stone-600 bg-white p-4 rounded-xl shadow-sm border border-stone-100" v-html="renderMarkdown(reviews.public)"></div>
-                                <div v-else class="h-full flex items-center justify-center text-stone-300 text-xs">暂无评价</div>
-                            </div>
-                        </div>
+                    <!-- 移动端 Tab 栏 (仅小屏显示) -->
+                    <div class="review-tabs md:hidden">
+                        <button v-for="tab in reviewTabs" :key="tab.id"
+                                :ref="el => { if(el) reviewTabRefs[tab.id] = el }"
+                                @click="currentReviewTab = tab.id"
+                                class="review-tab" :class="{ 'is-active': currentReviewTab === tab.id }">
+                            <svg class="icon w-4 h-4" viewBox="0 0 24 24" v-html="tab.icon"></svg>{{ tab.name }}
+                        </button>
+                        <div class="tab-slider" :style="reviewTabSliderStyle"></div>
+                    </div>
 
-                        <!-- 2. 老书虫 -->
-                        <div class="flex-1 flex flex-col bg-white/40 min-h-0 hover:bg-white/80 transition-all duration-300 group/col"
-                             :class="{'hidden md:flex': currentReviewTab !== 'veteran'}">
-                            <div class="hidden md:flex p-3 border-b border-stone-100 bg-white/60 group-hover/col:bg-white/90 transition-colors items-center gap-3 shrink-0">
-                                <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center shadow-sm border border-blue-200 group-hover/col:scale-110 transition-transform duration-300">
-                                    <svg class="icon w-6 h-6 text-blue-600" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                    <!-- 三张评审卡：桌面并排，手机按 Tab 只显示一张 -->
+                    <div class="grid flex-1 min-h-0 grid-rows-[minmax(0,1fr)] gap-3 p-3 md:grid-cols-3 md:gap-4 md:p-5">
+                        <section v-for="tab in reviewTabs" :key="tab.id" class="review-card flex flex-col min-h-0"
+                                 :class="{ 'hidden md:flex': currentReviewTab !== tab.id }">
+                            <header class="review-card__head">
+                                <span class="review-avatar" :class="tab.tone"><svg class="icon w-5 h-5" viewBox="0 0 24 24" v-html="tab.icon"></svg></span>
+                                <div class="min-w-0">
+                                    <h4>{{ tab.title }}</h4>
+                                    <p>{{ tab.desc }}</p>
                                 </div>
-                                <div>
-                                    <h4 class="font-bold text-stone-800 text-sm">十年老书虫</h4>
-                                    <p class="text-[10px] text-stone-500">阅书无数、眼光独到、深挖逻辑</p>
-                                </div>
+                            </header>
+                            <div class="review-card__body custom-scrollbar">
+                                <div v-if="reviewStatus[tab.id] === 'loading'" class="review-skeleton" aria-label="评审中"><span></span><span></span><span></span><span></span><span></span></div>
+                                <div v-else-if="reviews[tab.id]" class="review-prose" v-html="renderMarkdown(reviews[tab.id])"></div>
+                                <div v-else class="review-empty">还没有点评，点右上角「开始评审」</div>
                             </div>
-                            <div class="flex-1 overflow-y-auto p-3 custom-scrollbar">
-                                <div v-if="reviewStatus.veteran === 'loading'" class="flex flex-col items-center justify-center h-full text-stone-400 gap-2">
-                                    <svg class="icon w-8 h-8 animate-spin text-blue-400" viewBox="0 0 24 24"><path d="M12 4V2A10 10 0 0 0 2 12h2a8 8 0 0 1 8-8z"/></svg>
-                                </div>
-                                <div v-else-if="reviews.veteran" class="review-prose text-base text-stone-600 bg-white p-4 rounded-xl shadow-sm border border-stone-100" v-html="renderMarkdown(reviews.veteran)"></div>
-                                <div v-else class="h-full flex items-center justify-center text-stone-300 text-xs">暂无评价</div>
-                            </div>
-                        </div>
-
-                        <!-- 3. 资深作家 -->
-                        <div class="flex-1 flex flex-col bg-white/40 min-h-0 hover:bg-white/80 transition-all duration-300 group/col"
-                             :class="{'hidden md:flex': currentReviewTab !== 'writer'}">
-                            <div class="hidden md:flex p-3 border-b border-stone-100 bg-white/60 group-hover/col:bg-white/90 transition-colors items-center gap-3 shrink-0">
-                                <div class="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center shadow-sm border border-purple-200 group-hover/col:scale-110 transition-transform duration-300">
-                                    <svg class="icon w-6 h-6 text-purple-600" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
-                                </div>
-                                <div>
-                                    <h4 class="font-bold text-stone-800 text-sm">金牌主编</h4>
-                                    <p class="text-[10px] text-stone-500">分析架构、节奏、人物弧光</p>
-                                </div>
-                            </div>
-                            <div class="flex-1 overflow-y-auto p-3 custom-scrollbar">
-                                <div v-if="reviewStatus.writer === 'loading'" class="flex flex-col items-center justify-center h-full text-stone-400 gap-2">
-                                    <svg class="icon w-8 h-8 animate-spin text-purple-400" viewBox="0 0 24 24"><path d="M12 4V2A10 10 0 0 0 2 12h2a8 8 0 0 1 8-8z"/></svg>
-                                </div>
-                                <div v-else-if="reviews.writer" class="review-prose text-base text-stone-600 bg-white p-4 rounded-xl shadow-sm border border-stone-100" v-html="renderMarkdown(reviews.writer)"></div>
-                                <div v-else class="h-full flex items-center justify-center text-stone-300 text-xs">暂无评价</div>
-                            </div>
-                        </div>
+                        </section>
                     </div>
                 </div>
             </div>
@@ -1161,26 +1110,26 @@
                    {
                        id: 'public',
                        name: '吃瓜群众',
+                       title: '吃瓜群众',
+                       desc: '关注爽点、代入感、是否无聊',
                        icon: '<path d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z"/>',
-                       iconColor: 'text-orange-600',
-                       bgColor: 'bg-orange-100',
-                       borderColor: 'border-orange-200'
+                       tone: 'bg-amber-500/15 text-amber-600'
                    },
                    {
                        id: 'veteran',
                        name: '老书虫',
+                       title: '十年老书虫',
+                       desc: '阅书无数、眼光独到、深挖逻辑',
                        icon: '<path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>',
-                       iconColor: 'text-blue-600',
-                       bgColor: 'bg-blue-100',
-                       borderColor: 'border-blue-200'
+                       tone: 'bg-primary-500/15 text-primary-600'
                    },
                    {
                        id: 'writer',
                        name: '金牌主编',
+                       title: '金牌主编',
+                       desc: '分析架构、节奏、人物弧光',
                        icon: '<path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>',
-                       iconColor: 'text-purple-600',
-                       bgColor: 'bg-purple-100',
-                       borderColor: 'border-purple-200'
+                       tone: 'bg-green-500/15 text-green-600'
                    }
                ];
                const reviews = ref({ public: '', veteran: '', writer: '' });
@@ -1191,7 +1140,7 @@
                const showConfirmModal = ref(false);
                const confirmModalConfig = ref({});
                let confirmCallback = null;
-               const toast = ref({ show: false, message: '', icon: '', iconColor: '' });
+               const toast = ref({ show: false, message: '', type: 'success', icon: '' });
                let toastTimeout = null;
 
                 // 书架状态
@@ -1411,21 +1360,7 @@
 
                const showToast = (message, type = 'success') => {
                    clearTimeout(toastTimeout);
-                   let icon, iconColor;
-                   switch (type) {
-                       case 'success':
-                           icon = '<path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>';
-                           iconColor = 'text-green-400';
-                           break;
-                       case 'error':
-                           icon = '<path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm3.59-13L12 10.59 8.41 7 7 8.41 10.59 12 7 15.59 8.41 17 12 13.41 15.59 17 17 15.59 13.41 12 17 8.41z"/>';
-                           iconColor = 'text-red-400';
-                           break;
-                       default:
-                           icon = '<path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>';
-                           iconColor = 'text-blue-400';
-                   }
-                   toast.value = { show: true, message, icon, iconColor };
+                   toast.value = { show: true, message, type, icon: window.RPHubUtils.getToastIcon(message, type) };
                    toastTimeout = setTimeout(() => {
                        toast.value.show = false;
                    }, 2000);

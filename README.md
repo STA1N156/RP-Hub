@@ -68,13 +68,14 @@ RP-Hub/
 ├── assets/
 │   ├── css/
 │   │   ├── styles.css             # 主页面样式
-│   │   └── theme.css              # 主页面、工坊和小说页共用主题
+│   │   └── theme.css              # 三个页面共用的设计变量（配色、阴影、动效，含暗色）
 │   └── js/
 │       ├── built-in-content.js    # 默认预设、模式提示词、画师串与更新公告
 │       ├── core-utils.js          # 通用工具、角色卡处理与基础配置
 │       ├── api-utils.js           # HTTP、流式解析、工具调用与空回重试
 │       ├── data-services.js       # 存储、记忆、上下文、分支与 UI 状态
 │       ├── runtime-services.js    # 消息渲染、用量统计与空间管理
+│       ├── tailwind-theme.js      # 三个页面共用的 Tailwind 配置，颜色读取 theme.css 变量
 │       ├── theme.js               # 主题保存与内嵌页面同步
 │       ├── update-check.js        # 可选的远程版本检查
 │       ├── ui-components.js       # 导航、选择器、弹窗与页面组件

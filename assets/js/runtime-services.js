@@ -261,9 +261,6 @@
             if (count <= 0) return '0.00w';
             return `${Math.max(0.01, count / 10000).toFixed(2)}w`;
         };
-        const formatLatestUsageCost = quota => Number.isFinite(quota)
-            ? `¥${(Math.trunc(quota / 500000 * 10000) / 10000).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`
-            : '--';
 
         let saveQueue = Promise.resolve();
         const saveTokenUsageHistoryNow = () => {
@@ -340,7 +337,6 @@
             displayedTokenUsageHistory,
             filteredTokenUsageHistory,
             formatLatestTokenCount,
-            formatLatestUsageCost,
             formatTokenAggregate: (value, reports) => {
                 if (reports <= 0 || value <= 0) return '0';
                 if (value >= 100000000) return `${Number((value / 100000000).toFixed(2))}亿`;
@@ -348,8 +344,12 @@
                 return value.toLocaleString();
             },
             formatTokenCount: (value) => Number.isFinite(value) ? value.toLocaleString() : '0',
-            formatTokenUsageTime: (timestamp) => new Date(timestamp).toLocaleString('zh-CN', { hour12: false }),
-            getTokenUsageTypeLabel: (type) => ({ chat: '主对话', memory: '记忆系统', variables: '变量分析' })[getTokenUsageCategory(type)],
+            formatTokenUsageTime: (timestamp) => {
+                const date = new Date(timestamp);
+                const year = date.getFullYear() === new Date().getFullYear() ? undefined : 'numeric';
+                return date.toLocaleString('zh-CN', { year, month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
+            },
+            getTokenUsageCategory,
             getUncachedInputTokens,
             latestMainTokenUsage,
             recordApiUsage,
@@ -382,10 +382,10 @@
         toast
     }) => {
         const categories = Object.freeze([
-            { key: 'characters', label: '角色卡', color: '#2563eb' },
-            { key: 'chat', label: '聊天记录', color: '#3b82f6' },
-            { key: 'classic', label: '记忆系统', color: '#38bdf8' },
-            { key: 'other', label: '其他', color: '#94a3b8' }
+            { key: 'characters', label: '角色卡', color: '#4659e2' },
+            { key: 'chat', label: '聊天记录', color: '#7b8ff8' },
+            { key: 'classic', label: '记忆系统', color: '#4fb3a4' },
+            { key: 'other', label: '其他', color: '#9d9dab' }
         ]);
         const storageStats = reactive({
             loading: false,

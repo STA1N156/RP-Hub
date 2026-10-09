@@ -202,6 +202,54 @@ const extractApiErrorMessage = (payload, fallbackStatus = '') => {
     return detail ? formatApiErrorMessage(status, detail) : '';
 };
 
+// Toast icons name the action the message reports, so call sites only pass a status.
+const toastIcons = {
+    success: '<path d="M20 6 9 17l-5-5"/>',
+    info: '<circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/>',
+    warning: '<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/>',
+    error: '<circle cx="12" cy="12" r="9"/><path d="m15 9-6 6M9 9l6 6"/>',
+    wait: '<path d="M5 22h14M5 2h14M17 22v-4.2a2 2 0 0 0-.6-1.4L12 12l-4.4 4.4a2 2 0 0 0-.6 1.4V22M7 2v4.2a2 2 0 0 0 .6 1.4L12 12l4.4-4.4a2 2 0 0 0 .6-1.4V2"/>',
+    copy: '<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
+    trash: '<path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m5 5v6m4-6v6"/>',
+    download: '<path d="M12 3v12m-5-5 5 5 5-5M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>',
+    upload: '<path d="M12 15V3M7 8l5-5 5 5M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>',
+    starOff: '<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-2.9-5.6 2.9 1.1-6.2L3 9.6l6.2-.9z"/>',
+    star: '<path fill="currentColor" d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-2.9-5.6 2.9 1.1-6.2L3 9.6l6.2-.9z"/>',
+    image: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/>',
+    refresh: '<path d="M21 12a9 9 0 1 1-2.6-6.4L21 8m0-5v5h-5"/>',
+    rename: '<path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
+    branch: '<path d="M6 3v12M18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM18 9a9 9 0 0 1-9 9"/>',
+    model: '<rect x="5" y="5" width="14" height="14" rx="2"/><path d="M9 9h6v6H9zM9 2v3m6-3v3M9 19v3m6-3v3M2 9h3m-3 6h3m14-6h3m-3 6h3"/>',
+    stop: '<rect x="6" y="6" width="12" height="12" rx="2"/>',
+    swap: '<path d="m16 3 4 4-4 4M20 7H4m4 14-4-4 4-4m-4 4h16"/>',
+    save: '<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/>'
+};
+// First match wins, so the more specific wording comes first.
+const toastIconRules = [
+    [/正在|稍后|等待/, 'wait'],
+    [/复制/, 'copy'],
+    [/删除|清空|清理|清除/, 'trash'],
+    [/导出/, 'download'],
+    [/导入/, 'upload'],
+    [/取消收藏/, 'starOff'],
+    [/收藏/, 'star'],
+    [/图片|生图/, 'image'],
+    [/重新生成|重试/, 'refresh'],
+    [/改名|重命名/, 'rename'],
+    [/分支/, 'branch'],
+    [/模型/, 'model'],
+    [/中止|停止/, 'stop'],
+    [/切换|进入/, 'swap'],
+    [/保存/, 'save']
+];
+const getToastIcon = (message, type = 'info') => {
+    // A failure or caution should read as such, whatever the action was.
+    if (type === 'error') return toastIcons.error;
+    const icon = toastIconRules.find(([pattern]) => pattern.test(String(message)))?.[1];
+    if (type === 'warning') return toastIcons[icon === 'wait' ? 'wait' : 'warning'];
+    return toastIcons[icon] || toastIcons[type] || toastIcons.info;
+};
+
 window.RPHubUtils = {
     compressImage,
     defaultAvatar,
@@ -210,6 +258,7 @@ window.RPHubUtils = {
     generateUUID,
     getApiUsagePayload,
     getImageTagRegex,
+    getToastIcon,
     normalizeApiUsage,
     parseCot,
     stringifyErrorDetail
@@ -995,11 +1044,6 @@ window.RPHubUtils = {
                 { value: 'assistant', label: 'AI消息' }
             ]),
             presetRoleDisplayLabels: Object.freeze({ system: '系统', user: 'User', assistant: 'AI' }),
-            fontFamilies: Object.freeze([
-                { value: 'modern', label: '现代通用字体' },
-                { value: 'serif', label: '衬线字体' },
-                { value: 'system', label: '系统字体' }
-            ]),
             fontSizes: Object.freeze([12, 13, 14, 15, 16, 17, 18, 19, 20].map(size => ({
                 value: size,
                 label: `${size}px`
