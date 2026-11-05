@@ -972,7 +972,7 @@ label:is(:active, :focus-within) .settings-toggle::after { transition: transform
 .settings-view .settings-control--icon { padding-left: 2.75rem; }
 /* Key fields: copy and show/hide appear on the right while the field is in use. */
 .secret-input { position: relative; }
-.settings-view .secret-input input { padding-right: 4.75rem; }
+.settings-view .secret-input:focus-within input { padding-right: 4.75rem; }
 .secret-input__actions {
     position: absolute;
     top: 50%;

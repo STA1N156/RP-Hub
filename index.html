@@ -673,17 +673,8 @@
                             class="absolute left-3 bottom-[calc(100%+0.65rem)] z-[2] flex flex-nowrap gap-2.5 w-max max-w-[calc(100%-1.5rem)] overflow-x-auto py-1 pr-1">
                             <div v-for="image in pendingChatImages" :key="image.id"
                                 class="relative w-24 h-24 md:w-[7.5rem] md:h-[7.5rem] flex-none overflow-hidden rounded-xl bg-transparent shadow-lg"
-                                :title="image.status === 'ready' ? image.description : (image.error || '正在识别图片')">
+                                :title="image.name">
                                 <img :src="image.dataUrl" :alt="image.name" class="w-full h-full object-cover">
-                                <div v-if="image.status !== 'ready'"
-                                    :class="['absolute inset-0 flex flex-col items-center justify-center gap-1 text-[10px] font-semibold text-white', image.status === 'error' ? 'bg-red-700/75' : 'bg-slate-900/55']">
-                                    <svg v-if="image.status === 'analyzing'" class="generated-image-spinner"
-                                        style="width: 2.75rem; height: 2.75rem" viewBox="0 0 50 50" aria-label="正在识别图片">
-                                        <circle class="generated-image-spinner-path" cx="25" cy="25" r="20"
-                                            fill="none" stroke-width="2"></circle>
-                                    </svg>
-                                    <span v-else>识别失败</span>
-                                </div>
                                 <button type="button" @click.stop="removePendingChatImage(image.id)" title="移除图片"
                                     class="absolute top-1 right-1 z-[2] flex items-center justify-center w-5 h-5 rounded-full bg-slate-900/70 text-white shadow-sm"
                                     aria-label="移除图片">
@@ -847,7 +838,7 @@
                                     </svg>
                                 </button>
                                 <button v-if="!isConversationBusy" @click="sendMessage"
-                                    :disabled="(!userInput.trim() && pendingChatImages.length === 0 && !pendingCardInteraction) || isRecognizingImages || pendingChatImages.some(image => image.status !== 'ready')"
+                                    :disabled="(!userInput.trim() && pendingChatImages.length === 0 && !pendingCardInteraction) || pendingChatImageReadCount > 0"
                                     class="island-send" title="发送">
                                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M12 19V5m-6 6 6-6 6 6"></path>
@@ -1374,7 +1365,7 @@
                                 <div class="group">
                                     <div class="mb-2 ml-1 flex items-center justify-between gap-3">
                                         <label class="settings-label !mb-0">API 提供商</label>
-                                        <a href="https://cdn.sta1n.cn/keys" target="_blank" rel="noopener noreferrer"
+                                        <a href="https://sta1n.ai/keys" target="_blank" rel="noopener noreferrer"
                                             class="text-primary-600 hover:text-primary-700 hover:underline cursor-pointer transition-colors text-xs normal-case font-medium">
                                             获取API
                                         </a>
@@ -1491,62 +1482,30 @@
 
                                 <!-- Model Configuration Inputs -->
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                    <div class="group">
-                                        <label
-                                            class="settings-label">聊天模型</label>
-                                        <div class="relative group">
-                                            <div
-                                                class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-primary-500 transition-colors pointer-events-none z-10">
-                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                        d="M4 6h16M4 12h16M4 18h16"></path>
-                                                </svg>
-                                            </div>
-                                            <button type="button" @click="openModelSelector('quickModels')" aria-label="选择聊天模型"
-                                                class="settings-control settings-control--icon flex items-center justify-between text-left">
-                                                <span class="truncate mr-2 text-sm">已配置 {{ [settings.qualityModel,
-                                                    settings.balancedModel, settings.fastModel].filter(Boolean).length }} / 3 个槽位</span>
-                                                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor"
-                                                    viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                                        stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                                                </svg>
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div class="group">
-                                        <label class="settings-label">识图模型</label>
-                                        <div class="relative group">
-                                            <div
-                                                class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-primary-500 transition-colors pointer-events-none z-10">
-                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.269 2.943 9.542 7-1.273 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z M15 12a3 3 0 11-6 0 3 3 0 016 0z">
-                                                    </path>
-                                                </svg>
-                                            </div>
-                                            <button type="button" @click="openModelSelector('visionModel')" aria-label="选择识图模型"
-                                                class="settings-control settings-control--icon flex items-center justify-between text-left">
-                                                <span class="truncate mr-2 font-mono text-sm">{{ settings.visionModel || '请选择模型' }}</span>
-                                                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                                                </svg>
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div class="col-span-1 md:col-span-2">
-                                        <button @click="fetchModels(true)"
-                                            class="settings-action w-full text-primary-600"
-                                            title="刷新列表">
-                                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor"
-                                                viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
-                                                </path>
+                                    <div v-for="item in [
+                                        { target: 'quickModels', label: '聊天主模型', value: '已配置 ' + [settings.qualityModel, settings.balancedModel, settings.fastModel].filter(Boolean).length + ' / 3 个槽位' },
+                                        { target: 'memoryClassicModel', label: '记忆总结模型', value: memorySettings.classicModel },
+                                        { target: 'memoryEmbeddingModel', label: '记忆向量模型', value: memorySettings.embeddingModel },
+                                        { target: 'uiTemplateModel', label: '变量分析模型', value: settings.uiTemplateModel }
+                                    ]" :key="item.target" class="min-w-0">
+                                        <label :for="'model-config-' + item.target" class="settings-label">{{ item.label }}</label>
+                                        <button type="button" :id="'model-config-' + item.target"
+                                            @click="openModelSelector(item.target)" :aria-label="'选择' + item.label"
+                                            class="settings-control flex items-center justify-between text-left" :title="item.value">
+                                            <span class="truncate mr-2 text-sm">{{ item.value || '请选择模型' }}</span>
+                                            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
                                             </svg>
-                                            刷新可用模型列表
                                         </button>
                                     </div>
+                                    <button type="button" @click="fetchModels(true)"
+                                        class="settings-action w-full text-primary-600 md:col-span-2">
+                                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                        </svg>
+                                        刷新可用模型列表
+                                    </button>
                                 </div>
 
                                 <!-- Image Generation Settings -->

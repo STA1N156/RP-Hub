@@ -973,7 +973,7 @@
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 3v2m6-2v2M9 19v2m6-2v2M3 9h2m-2 6h2m14-6h2m-2 6h2M7 5h10a2 2 0 012 2v10a2 2 0 01-2 2H7a2 2 0 01-2-2V7a2 2 0 012-2zM9 9h6v6H9z"></path>
                                     </svg>
                                 </div>
-                                <h3 id="model-selector-title" class="text-base font-bold text-gray-900 sm:text-lg">{{ target === 'quickModels' ? '聊天模型' : '选择模型' }}</h3>
+                                <h3 id="model-selector-title" class="text-base font-bold text-gray-900 sm:text-lg">{{ target === 'quickModels' ? '聊天主模型' : '选择模型' }}</h3>
                             </div>
                             <button type="button" @click="$emit('close')" aria-label="关闭模型选择" class="modal-close-button flex h-10 w-10 shrink-0 items-center justify-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -981,7 +981,7 @@
                                 </svg>
                             </button>
                         </div>
-                        <div v-if="target === 'quickModels'" class="grid shrink-0 grid-cols-3 gap-2 px-4 pt-3 sm:px-5" role="group" aria-label="聊天模型槽位">
+                        <div v-if="target === 'quickModels'" class="grid shrink-0 grid-cols-3 gap-2 px-4 pt-3 sm:px-5" role="group" aria-label="聊天主模型槽位">
                             <button v-for="(_, index) in draftSlotModels" :key="index" type="button"
                                 @click="activeSlot = index" :aria-pressed="activeSlot === index"
                                 class="min-w-0 rounded-xl border p-2.5 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500"
