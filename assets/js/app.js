@@ -344,6 +344,8 @@ const app = createApp({
         const activeModelTag = ref('all');
         const characterSearchQuery = ref('');
         const availableModels = ref([]);
+        const memorySummaryModels = ref([]);
+        const memoryEmbeddingModels = ref([]);
         const toasts = ref([]);
         let toastIdSeed = 0;
         const chatContainer = ref(null);
@@ -1140,7 +1142,14 @@ const app = createApp({
             embeddingModel: '',
             classicModel: '',
             summaryKeepFloors: SUMMARY_KEEP_FLOORS_DEFAULT,
-            classicConcurrency: CLASSIC_MEMORY_DEFAULT_CONCURRENCY
+            classicConcurrency: CLASSIC_MEMORY_DEFAULT_CONCURRENCY,
+            // 独立服务商：总结与向量各自拥有独立渠道；apiProviderKeys 为两渠道共享的 Key 池（按服务商 ID 存放）。
+            separateProvider: false,
+            apiProviderKeys: {},
+            summaryProviderId: '',
+            summaryCustomApiUrl: '',
+            embeddingProviderId: '',
+            embeddingCustomApiUrl: ''
         });
         const isClassicBatchExtracting = ref(false);
         const memoryBackfillProgress = ref({ status: 'idle', message: '', phase: '', stages: [] });
@@ -1186,11 +1195,47 @@ const app = createApp({
             return Math.max(CLASSIC_MEMORY_MIN_CONCURRENCY, Math.min(CLASSIC_MEMORY_MAX_CONCURRENCY, Math.round(concurrency)));
         };
 
+        const normalizeMemoryProviderSettings = () => {
+            if (!memorySettings.apiProviderKeys || typeof memorySettings.apiProviderKeys !== 'object' || Array.isArray(memorySettings.apiProviderKeys)) {
+                memorySettings.apiProviderKeys = {};
+            }
+            [...apiProviderOptions, ...customApiProviderOptions].forEach(provider => {
+                if (typeof memorySettings.apiProviderKeys[provider.id] !== 'string') {
+                    memorySettings.apiProviderKeys[provider.id] = '';
+                }
+            });
+            // 迁移旧版“单一独立服务商”配置到总结与向量两个渠道。
+            if (memorySettings.apiProviderId !== undefined) {
+                const legacyId = String(memorySettings.apiProviderId || '').trim();
+                const legacyUrl = String(memorySettings.customApiUrl || '').trim();
+                if (legacyId) {
+                    if (!String(memorySettings.summaryProviderId || '').trim()) memorySettings.summaryProviderId = legacyId;
+                    if (!String(memorySettings.embeddingProviderId || '').trim()) memorySettings.embeddingProviderId = legacyId;
+                    if (legacyUrl) {
+                        if (isCustomApiProviderId(memorySettings.summaryProviderId) && !String(memorySettings.summaryCustomApiUrl || '').trim()) memorySettings.summaryCustomApiUrl = legacyUrl;
+                        if (isCustomApiProviderId(memorySettings.embeddingProviderId) && !String(memorySettings.embeddingCustomApiUrl || '').trim()) memorySettings.embeddingCustomApiUrl = legacyUrl;
+                    }
+                }
+                delete memorySettings.apiProviderId;
+                delete memorySettings.customApiUrl;
+            }
+            memorySettings.separateProvider = Boolean(memorySettings.separateProvider);
+            [MEMORY_CHANNEL_SUMMARY, MEMORY_CHANNEL_EMBEDDING].forEach(channel => {
+                const isCustom = isCustomApiProviderId(getMemoryChannelProviderId(channel));
+                const valid = isCustom || Boolean(getApiProviderById(getMemoryChannelProviderId(channel)));
+                // 无效渠道 ID 一律回退为“跟随主对话”（渠道 ID 为空即跟随）。
+                if (!valid) setMemoryChannelProviderId(channel, '');
+                const customUrl = String(getMemoryChannelCustomUrl(channel) || '').trim();
+                setMemoryChannelCustomUrl(channel, isCustom ? customUrl : '');
+            });
+        };
+
         const normalizeMemorySettings = () => {
             if (!memorySettings.classicModel && memorySettings.model) {
                 memorySettings.classicModel = String(memorySettings.model).trim();
             }
-            const fields = new Set(['enabled', 'mode', 'embeddingModel', 'classicModel', 'summaryKeepFloors', 'classicConcurrency']);
+            const fields = new Set(['enabled', 'mode', 'embeddingModel', 'classicModel', 'summaryKeepFloors', 'classicConcurrency',
+                'separateProvider', 'apiProviderKeys', 'summaryProviderId', 'summaryCustomApiUrl', 'embeddingProviderId', 'embeddingCustomApiUrl']);
             Object.keys(memorySettings).forEach(key => {
                 if (!fields.has(key)) delete memorySettings[key];
             });
@@ -1206,7 +1251,130 @@ const app = createApp({
                 SUMMARY_KEEP_FLOORS_DEFAULT
             );
             memorySettings.classicConcurrency = normalizeClassicMemoryConcurrency(memorySettings.classicConcurrency);
+            normalizeMemoryProviderSettings();
         };
+
+        // --- Memory system independent provider channels ---
+        const MEMORY_CHANNEL_SUMMARY = 'summary';
+        const MEMORY_CHANNEL_EMBEDDING = 'embedding';
+        const MEMORY_MODEL_CHANNEL = {
+            memoryClassicModel: MEMORY_CHANNEL_SUMMARY,
+            memoryEmbeddingModel: MEMORY_CHANNEL_EMBEDDING
+        };
+        const MEMORY_CHANNEL_LABELS = { [MEMORY_CHANNEL_SUMMARY]: '总结', [MEMORY_CHANNEL_EMBEDDING]: '向量' };
+        const getMemoryChannelProviderId = (channel) => String(
+            channel === MEMORY_CHANNEL_EMBEDDING ? memorySettings.embeddingProviderId : memorySettings.summaryProviderId
+        ).trim();
+        const setMemoryChannelProviderId = (channel, providerId) => {
+            if (channel === MEMORY_CHANNEL_EMBEDDING) memorySettings.embeddingProviderId = providerId;
+            else memorySettings.summaryProviderId = providerId;
+        };
+        const getMemoryChannelCustomUrl = (channel) => String(
+            channel === MEMORY_CHANNEL_EMBEDDING ? memorySettings.embeddingCustomApiUrl : memorySettings.summaryCustomApiUrl
+        );
+        const setMemoryChannelCustomUrl = (channel, url) => {
+            if (channel === MEMORY_CHANNEL_EMBEDDING) memorySettings.embeddingCustomApiUrl = url;
+            else memorySettings.summaryCustomApiUrl = url;
+        };
+        // 渠道 ID 为空表示该渠道跟随主对话配置。
+        const isMemoryChannelSeparate = (channel) => Boolean(
+            memorySettings.separateProvider && getMemoryChannelProviderId(channel)
+        );
+        const getMemoryChannelUrl = (channel) => {
+            if (!isMemoryChannelSeparate(channel)) return settings.apiUrl;
+            if (isCustomApiProviderId(getMemoryChannelProviderId(channel))) return getMemoryChannelCustomUrl(channel).trim();
+            return getApiProviderById(getMemoryChannelProviderId(channel))?.apiUrl || settings.apiUrl;
+        };
+        const getMemoryChannelKey = (channel) => {
+            if (!isMemoryChannelSeparate(channel)) return settings.apiKey;
+            return String(memorySettings.apiProviderKeys?.[getMemoryChannelProviderId(channel)] || '');
+        };
+        const getMemoryChannelConnection = (channel) => ({ apiUrl: getMemoryChannelUrl(channel), apiKey: getMemoryChannelKey(channel) });
+        const memoryChannelModelsRef = (channel) => channel === MEMORY_CHANNEL_EMBEDDING ? memoryEmbeddingModels : memorySummaryModels;
+        const getMemoryChannelConfigError = (channel) => {
+            if (getMemoryChannelUrl(channel) && getMemoryChannelKey(channel)) return '';
+            return isMemoryChannelSeparate(channel)
+                ? `请先在记忆系统设置中配置${MEMORY_CHANNEL_LABELS[channel]}渠道的 API 地址和 Key`
+                : '请先配置 API 地址和 Key';
+        };
+        const getMemoryChannelProviderOption = (channel) => {
+            const providerId = getMemoryChannelProviderId(channel);
+            if (isCustomApiProviderId(providerId)) return customApiProviderOption;
+            return getApiProviderById(providerId) || customApiProviderOption;
+        };
+        const isCustomMemoryChannel = (channel) => isMemoryChannelSeparate(channel) && isCustomApiProviderId(getMemoryChannelProviderId(channel));
+        const memoryChannelDisplayProvider = (channel) => {
+            if (!getMemoryChannelProviderId(channel)) return { id: '', name: '跟随主对话' };
+            return getMemoryChannelProviderOption(channel);
+        };
+        const memoryChannelRows = computed(() => [
+            { id: MEMORY_CHANNEL_SUMMARY, label: '总结渠道', modelLabel: '总结模型列表' },
+            ...(memorySettings.mode === MEMORY_MODE_ENHANCED ? [{ id: MEMORY_CHANNEL_EMBEDDING, label: '向量渠道', modelLabel: '向量模型列表' }] : [])
+        ]);
+        // 开启开关时，两个渠道均以当前主对话配置为起点，用户可再分别切换。
+        const memoryProviderEnabled = computed({
+            get: () => Boolean(memorySettings.separateProvider),
+            set: (enabled) => {
+                memorySettings.separateProvider = Boolean(enabled);
+                if (enabled) {
+                    [MEMORY_CHANNEL_SUMMARY, MEMORY_CHANNEL_EMBEDDING].forEach(channel => {
+                        if (getMemoryChannelProviderId(channel)) return;
+                        const providerId = isCustomApiProviderId(settings.apiProviderId)
+                            ? 'custom'
+                            : (getApiProviderById(settings.apiProviderId)?.id || DEFAULT_API_PROVIDER_ID);
+                        setMemoryChannelProviderId(channel, providerId);
+                        if (isCustomApiProviderId(providerId)) {
+                            setMemoryChannelCustomUrl(channel, settings.customApiUrl || settings.apiUrl || '');
+                        }
+                        memorySettings.apiProviderKeys[providerId] = settings.apiKey || '';
+                    });
+                }
+                closeMemoryChannelMenu();
+            }
+        });
+
+        // 渠道菜单直接渲染在 <body> 上（Teleport），避免被折叠面板的 overflow 裁剪，且置于所有元素之上。
+        const memoryChannelMenu = ref(null); // { channel, top, left, width }
+        const memoryChannelMenuEl = ref(null);
+        const closeMemoryChannelMenu = () => { memoryChannelMenu.value = null; };
+        const toggleMemoryChannelMenu = (channel, event) => {
+            if (memoryChannelMenu.value?.channel === channel) {
+                closeMemoryChannelMenu();
+                return;
+            }
+            const rect = event.currentTarget.getBoundingClientRect();
+            memoryChannelMenu.value = {
+                channel,
+                top: Math.min(rect.bottom + 6, window.innerHeight - 16),
+                left: Math.max(8, Math.min(rect.left, window.innerWidth - 16)),
+                width: Math.max(rect.width, 240)
+            };
+        };
+        const selectMemoryChannelProvider = (provider) => {
+            if (memoryChannelMenu.value) setMemoryChannelProviderId(memoryChannelMenu.value.channel, provider.id);
+            closeMemoryChannelMenu();
+        };
+        const onMemoryChannelMenuPointerDown = (event) => {
+            if (memoryChannelMenuEl.value?.contains(event.target)) return;
+            if (event.target.closest?.('[data-memory-channel-trigger]')) return;
+            closeMemoryChannelMenu();
+        };
+        watch(memoryChannelMenu, (menu) => {
+            if (menu) {
+                document.addEventListener('pointerdown', onMemoryChannelMenuPointerDown, true);
+                window.addEventListener('scroll', closeMemoryChannelMenu, true);
+                window.addEventListener('resize', closeMemoryChannelMenu);
+            } else {
+                document.removeEventListener('pointerdown', onMemoryChannelMenuPointerDown, true);
+                window.removeEventListener('scroll', closeMemoryChannelMenu, true);
+                window.removeEventListener('resize', closeMemoryChannelMenu);
+            }
+        });
+        onBeforeUnmount(() => {
+            document.removeEventListener('pointerdown', onMemoryChannelMenuPointerDown, true);
+            window.removeEventListener('scroll', closeMemoryChannelMenu, true);
+            window.removeEventListener('resize', closeMemoryChannelMenu);
+        });
 
         const normalizeActiveToolCallName = (value) => {
             const raw = String(value || '').trim();
@@ -1382,9 +1550,9 @@ const app = createApp({
             saveStoredValue: setStoredValue,
             toast: (...args) => showToast(...args)
         });
-        const requestTrackedChatCompletion = (options, type) => {
-            const apiUrl = settings.apiUrl;
-            const request = { url: buildApiEndpoint(apiUrl, 'chat/completions'), apiKey: settings.apiKey, ...options };
+        const requestTrackedChatCompletion = (options, type, connection) => {
+            const apiUrl = connection?.apiUrl || settings.apiUrl;
+            const request = { url: buildApiEndpoint(apiUrl, 'chat/completions'), apiKey: connection?.apiKey ?? settings.apiKey, ...options };
             return requestChatCompletion({ ...request, onUsage: (usage, metrics) => recordApiUsage(usage, {
                 type, model: request.model, apiUrl, apiKey: request.apiKey, ...metrics
             }) });
@@ -3071,9 +3239,16 @@ const app = createApp({
         // Chat, summary and analysis models must write text, so embedding models are left out of their lists, and one
         // already saved as the summary or analysis model (picked earlier, or brought in with old settings) is cleared.
         const isEmbeddingModelId = id => /embedding/i.test(String(id || ''));
+        const isMemoryModelSelectionTarget = () => ['memoryClassicModel', 'memoryEmbeddingModel'].includes(modelSelectionTarget.value);
+        // 记忆模型对应渠道开启独立服务商后，选择总结/向量模型时改用该渠道的模型列表。
+        const activeSelectionModels = () => {
+            const channel = MEMORY_MODEL_CHANNEL[modelSelectionTarget.value];
+            if (channel && isMemoryChannelSeparate(channel)) return memoryChannelModelsRef(channel).value;
+            return availableModels.value;
+        };
         const selectableModels = computed(() => ['quickModels', 'memoryClassicModel', 'uiTemplateModel'].includes(modelSelectionTarget.value)
-            ? availableModels.value.filter(model => !isEmbeddingModelId(model.id))
-            : availableModels.value);
+            ? activeSelectionModels().filter(model => !isEmbeddingModelId(model.id))
+            : activeSelectionModels());
         watch(() => [memorySettings.classicModel, settings.uiTemplateModel], ([classicModel, analysisModel]) => {
             if (isEmbeddingModelId(classicModel)) memorySettings.classicModel = '';
             if (isEmbeddingModelId(analysisModel)) settings.uiTemplateModel = '';
@@ -3118,7 +3293,8 @@ const app = createApp({
                 }
             }
 
-            const searchQuery = modelSelectionTarget.value === 'memoryEmbeddingModel' ? 'embedding' : modelSearchQuery.value;
+            // 向量模型选择器打开时会预填“embedding”方便定位，但用户可以修改或清空搜索词。
+            const searchQuery = modelSearchQuery.value;
             if (searchQuery) {
                 const query = searchQuery.toLowerCase();
                 result = result.filter(m => m.id.toLowerCase().includes(query));
@@ -3382,6 +3558,29 @@ const app = createApp({
             }
         };
 
+        const fetchMemoryModels = async (channel, isManual = false) => {
+            const apiUrl = getMemoryChannelUrl(channel);
+            const apiKey = String(getMemoryChannelKey(channel) || '').trim();
+            if (!apiUrl) {
+                if (isManual) showToast(`请先填写记忆系统${MEMORY_CHANNEL_LABELS[channel]}渠道的 API 地址`, 'info');
+                return;
+            }
+            if (!apiKey) {
+                if (isManual) showToast(`请先填写记忆系统${MEMORY_CHANNEL_LABELS[channel]}渠道的 Key`, 'info');
+                return;
+            }
+            try {
+                if (isManual) showToast('正在获取记忆模型列表...', 'info');
+                const url = buildApiEndpoint(apiUrl, 'models');
+                const data = await requestJson({ url, apiKey });
+                memoryChannelModelsRef(channel).value = data.data || [];
+                if (isManual) showToast(`成功获取 ${memoryChannelModelsRef(channel).value.length} 个模型`, 'success');
+            } catch (error) {
+                console.error(error);
+                showToast('获取记忆模型失败: ' + error.message, 'error');
+            }
+        };
+
         const openModelSelector = (target) => {
             modelSelectionTarget.value = target;
             if (target === 'memoryEmbeddingModel') {
@@ -3390,8 +3589,27 @@ const app = createApp({
             } else if (modelSearchQuery.value === 'embedding') {
                 modelSearchQuery.value = '';
             }
+            // 记忆模型使用独立服务商渠道时，自动拉取该渠道的模型列表。
+            const channel = MEMORY_MODEL_CHANNEL[target];
+            if (channel && isMemoryChannelSeparate(channel)) {
+                if (!getMemoryChannelUrl(channel) || !getMemoryChannelKey(channel)) {
+                    showToast(`请先配置${MEMORY_CHANNEL_LABELS[channel]}渠道的 API 地址和 Key`, 'info');
+                } else if (!memoryChannelModelsRef(channel).value.length) {
+                    fetchMemoryModels(channel);
+                }
+            }
             showModelSelector.value = true;
         };
+
+        // 记忆渠道服务商切换后旧列表失效，清空以便下次打开选择器时重新拉取。
+        watch(() => [MEMORY_CHANNEL_SUMMARY, MEMORY_CHANNEL_EMBEDDING].flatMap(channel => [
+            memorySettings.separateProvider,
+            getMemoryChannelProviderId(channel),
+            getMemoryChannelCustomUrl(channel)
+        ]), () => {
+            memoryChannelModelsRef(MEMORY_CHANNEL_SUMMARY).value = [];
+            memoryChannelModelsRef(MEMORY_CHANNEL_EMBEDDING).value = [];
+        });
 
         const selectQuickModels = (models) => {
             const previousModel = settings.model;
@@ -5024,12 +5242,14 @@ const app = createApp({
 
         const requestClassicMemoryCompletion = async (requestMessages, signal) => {
             const model = String(memorySettings.classicModel || '').trim();
-            if (!settings.apiUrl || !settings.apiKey) throw new Error('请先配置 API 地址和 Key');
+            const connection = getMemoryChannelConnection(MEMORY_CHANNEL_SUMMARY);
+            const configError = getMemoryChannelConfigError(MEMORY_CHANNEL_SUMMARY);
+            if (configError) throw new Error(configError);
             if (!model) throw new Error('请先选择总结模型');
 
             const result = await requestTrackedChatCompletion({
                 model, temperature: 0.2, stream: false, messages: requestMessages, signal
-            }, 'summary');
+            }, 'summary', connection);
             const summary = parseCot(result.content).main
                 .replace(/^```(?:text|markdown)?\s*/i, '')
                 .replace(/\s*```$/, '')
@@ -5339,15 +5559,16 @@ const app = createApp({
         };
 
         const requestMemoryEmbeddings = async (inputs, signal, model = getMemoryEmbeddingModel()) => {
-            if (!settings.apiUrl || !settings.apiKey) throw new Error('请先配置 API 地址和 Key');
+            const configError = getMemoryChannelConfigError(MEMORY_CHANNEL_EMBEDDING);
+            if (configError) throw new Error(configError);
             if (!model) throw new Error('请先选择向量模型');
 
             const normalizedInputs = inputs.map(input => String(input || '').trim());
             if (normalizedInputs.some(input => !input)) throw new Error('嵌入内容不能为空');
 
             const requestStartedAt = Date.now();
-            const apiUrl = settings.apiUrl;
-            const apiKey = settings.apiKey;
+            const apiUrl = getMemoryChannelUrl(MEMORY_CHANNEL_EMBEDDING);
+            const apiKey = getMemoryChannelKey(MEMORY_CHANNEL_EMBEDDING);
             const data = await requestJson({
                 url: buildApiEndpoint(apiUrl, 'embeddings'), apiKey, signal,
                 body: { model, input: normalizedInputs.length === 1 ? normalizedInputs[0] : normalizedInputs }
@@ -5372,13 +5593,13 @@ const app = createApp({
             return vectors;
         };
 
-        const hasCurrentSummaryEmbedding = (memory, model = getMemoryEmbeddingModel(), apiUrl = settings.apiUrl) =>
+        const hasCurrentSummaryEmbedding = (memory, model = getMemoryEmbeddingModel(), apiUrl = getMemoryChannelUrl(MEMORY_CHANNEL_EMBEDDING)) =>
             memory.embeddingModel === model && memory.embeddingApiUrl === apiUrl
             && getSummaryEmbedding(memory).length > 0;
 
         const getSummaryEmbeddingJobs = (snapshot, sources = getSummarySources(classicMemories.value)) => {
             const model = getMemoryEmbeddingModel();
-            const apiUrl = settings.apiUrl;
+            const apiUrl = getMemoryChannelUrl(MEMORY_CHANNEL_EMBEDDING);
             const messagesById = new Map(chatHistory.value.filter(message => message.id).map(message => [message.id, message]));
             const turnsByNumber = new Map(snapshot.turns.map(turn => [turn.turn, turn]));
             return sources.map(memory => {
@@ -5395,7 +5616,7 @@ const app = createApp({
 
         const indexSummaryMemories = async (snapshot, signal, sources, onProgress) => {
             const model = getMemoryEmbeddingModel();
-            const apiUrl = settings.apiUrl;
+            const apiUrl = getMemoryChannelUrl(MEMORY_CHANNEL_EMBEDDING);
             const epoch = _classicExtractionEpoch;
             const scopeId = getCurrentStoryBranchScopeId();
             const isCurrent = () => !signal?.aborted && epoch === _classicExtractionEpoch
@@ -6154,6 +6375,12 @@ const app = createApp({
                 progress.message = '请先在记忆系统设置中选择总结模型。';
                 return;
             }
+            const memoryConfigError = getMemoryChannelConfigError(MEMORY_CHANNEL_SUMMARY);
+            if (memoryConfigError) {
+                progress.status = 'error';
+                progress.message = memoryConfigError + '。';
+                return;
+            }
 
             const batchController = new AbortController();
             _classicBatchExtractAbort = batchController;
@@ -6308,7 +6535,8 @@ const app = createApp({
             return startClassicBatchMemoryExtraction({ manual: true });
         };
 
-        watch(() => [memorySettings.enabled, memorySettings.mode, memorySettings.classicModel, memorySettings.embeddingModel, settings.apiUrl], () => {
+        watch(() => [memorySettings.enabled, memorySettings.mode, memorySettings.classicModel, memorySettings.embeddingModel,
+            getMemoryChannelUrl(MEMORY_CHANNEL_SUMMARY), getMemoryChannelUrl(MEMORY_CHANNEL_EMBEDDING)], () => {
             abortClassicBatchExtraction();
         });
 
@@ -8233,6 +8461,10 @@ const app = createApp({
             quotaValue, quotaLoading, quotaError,
             // Memory System Exports
             classicMemoryPage, classicMemoryPageCount, memorySettings, retryingClassicMemoryId, retryClassicMemory,
+            memoryProviderEnabled, memoryChannelMenu, memoryChannelMenuEl,
+            toggleMemoryChannelMenu, selectMemoryChannelProvider, closeMemoryChannelMenu,
+            getMemoryChannelProviderId, getMemoryChannelProviderOption, memoryChannelDisplayProvider, memoryChannelRows,
+            isCustomMemoryChannel, isMemoryChannelSeparate, fetchMemoryModels,
             isActiveBatchExtracting: isClassicBatchExtracting,
             showMemoryBackfillModal, memoryBackfillProgress,
             startBatchMemoryExtraction, abortBatchExtraction: abortClassicBatchExtraction,

@@ -955,7 +955,7 @@ label:is(:active, :focus-within) .settings-toggle::after { transition: transform
 .settings-label { display: block; margin-bottom: 0.5rem; color: var(--c-text-2); font-size: 0.8125rem; font-weight: 600; }
 .settings-subheading { color: var(--c-text); font-size: 0.875rem; font-weight: 600; }
 
-.settings-view .settings-control {
+.settings-control {
     width: 100%;
     min-width: 0;
     min-height: 2.875rem;
@@ -969,10 +969,10 @@ label:is(:active, :focus-within) .settings-toggle::after { transition: transform
     box-shadow: none;
     transition: border-color var(--dur-2) ease, box-shadow var(--dur-2) ease, background-color var(--dur-2) ease;
 }
-.settings-view .settings-control--icon { padding-left: 2.75rem; }
+.settings-control--icon { padding-left: 2.75rem; }
 /* Key fields: copy and show/hide appear on the right while the field is in use. */
 .secret-input { position: relative; }
-.settings-view .secret-input:focus-within input { padding-right: 4.75rem; }
+.secret-input:focus-within input { padding-right: 4.75rem; }
 .secret-input__actions {
     position: absolute;
     top: 50%;
@@ -989,16 +989,16 @@ label:is(:active, :focus-within) .settings-toggle::after { transition: transform
 .secret-input__actions button:hover:not(:disabled) { background: var(--c-raised); color: var(--c-text); }
 .secret-input__actions button:disabled { opacity: 0.4; cursor: not-allowed; }
 .secret-input__actions svg { width: 1.125rem; height: 1.125rem; }
-.settings-view button.settings-control { height: 2.875rem; }
-.settings-view textarea.settings-control { resize: vertical; }
-.settings-view .settings-control > svg { flex-shrink: 0; }
-.settings-view .settings-control:hover { border-color: var(--c-border-strong); }
-.settings-view .settings-control:focus { outline: none; border-color: rgb(var(--primary-400)); box-shadow: var(--ring); }
-.settings-view .settings-control::placeholder { color: var(--c-text-4); }
-.settings-view .segmented-switch { min-height: 2.875rem; box-shadow: none; }
-.settings-view .segmented-switch__option { min-width: 0; gap: 0.25rem; }
-.settings-view .segmented-switch__option > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.settings-view .segmented-switch__option > span:first-child { flex-shrink: 0; }
+button.settings-control { height: 2.875rem; }
+textarea.settings-control { resize: vertical; }
+.settings-control > svg { flex-shrink: 0; }
+.settings-control:hover { border-color: var(--c-border-strong); }
+.settings-control:focus { outline: none; border-color: rgb(var(--primary-400)); box-shadow: var(--ring); }
+.settings-control::placeholder { color: var(--c-text-4); }
+.segmented-switch { min-height: 2.875rem; box-shadow: none; }
+.segmented-switch__option { min-width: 0; gap: 0.25rem; }
+.segmented-switch__option > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.segmented-switch__option > span:first-child { flex-shrink: 0; }
 
 .settings-fields { display: grid; border-top: 1px solid var(--c-border-soft); }
 .settings-field { position: relative; padding: 1rem 0; border-bottom: 1px solid var(--c-border-soft); }

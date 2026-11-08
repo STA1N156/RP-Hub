@@ -996,11 +996,9 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="m21 21-5-5m2-6a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                                 </svg>
                                 <input :value="searchQuery" @input="$emit('update:search-query', $event.target.value)" type="text" aria-label="搜索模型"
-                                    autocomplete="off" spellcheck="false" :placeholder="target === 'memoryEmbeddingModel' ? '仅显示向量模型' : '搜索模型名称…'"
-                                    :readonly="target === 'memoryEmbeddingModel'"
-                                    :title="target === 'memoryEmbeddingModel' ? '仅显示 embedding 模型' : ''"
+                                    autocomplete="off" spellcheck="false" :placeholder="target === 'memoryEmbeddingModel' ? '搜索向量模型…（可清空以查看全部）' : '搜索模型名称…'"
                                     class="h-11 w-full min-w-0 rounded-xl border border-gray-200 bg-gray-50 py-2 pl-11 pr-11 text-base text-gray-800 placeholder-gray-400 transition-colors focus:border-primary-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-100 sm:text-sm">
-                                <button v-if="searchQuery && target !== 'memoryEmbeddingModel'" type="button" @click="$emit('update:search-query', '')"
+                                <button v-if="searchQuery" type="button" @click="$emit('update:search-query', '')"
                                     aria-label="清空搜索" class="absolute right-0 top-0 flex h-11 w-11 items-center justify-center rounded-xl text-gray-400 hover:text-gray-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500">
                                     <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-width="2" d="m6 6 12 12M6 18 18 6"></path></svg>
                                 </button>
