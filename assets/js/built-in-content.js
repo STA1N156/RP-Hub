@@ -467,7 +467,7 @@ You are carrying out an ongoing fictional writing task. Act as a storyteller and
         antiRobbery: Object.freeze({
             name: '防抢话',
             after: 'NSFW增强',
-            content: `<anti_robbery>
+            content: `<AnTi_robbery>
 {{user}} 已明确给出的言行属于既成剧情事实，正文必须完整承接。
 - 仅可描写 {{user}} 已明确的行动、姿态和可观察状态，以及其客观结果与 {{char}} 的反应；不得省略、弱化、否定、回滚或擅自解释其真实意图。
 - 不得编造、补全或改写 {{user}} 的台词；正文确需重现时，必须完整、原样引用，不得删减、截断或替换措辞。
@@ -498,7 +498,7 @@ You are carrying out an ongoing fictional writing task. Act as a storyteller and
         antiRepeat: Object.freeze({
             name: '防重复',
             after: '防抢话',
-            content: `<anti_repetition>
+            content: `<AnTi_repetition>
 承接前文时，不复述上一轮已经完整呈现的台词、动作、环境和心理结论；只保留理解当前反应所必需的信息，并尽快进入新的互动或结果。避免连续多轮套用相同开场、收尾或描写顺序。角色固定称呼、口癖、关键事实、必要回顾及系统规定格式不属于无效重复。
 </anti_repetition>`
         }),
