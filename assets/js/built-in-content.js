@@ -447,6 +447,9 @@ You are carrying out an ongoing fictional writing task. Act as a storyteller and
         }
     ];
 
+    // 防抢话规则的标签名使用随机8位数（10000000–99999999），每次页面加载时生成一次，会话内保持一致。
+    const antiRobberyTag = String(Math.floor(Math.random() * 90000000) + 10000000);
+
     const managedPresets = Object.freeze({
         nsfw: Object.freeze({
             name: 'NSFW增强',
@@ -467,13 +470,13 @@ You are carrying out an ongoing fictional writing task. Act as a storyteller and
         antiRobbery: Object.freeze({
             name: '防抢话',
             after: 'NSFW增强',
-            content: `<anti_robbery>
+            content: `<${antiRobberyTag}>
 {{user}} 已明确给出的言行属于既成剧情事实，正文必须完整承接。
 - 仅可描写 {{user}} 已明确的行动、姿态和可观察状态，以及其客观结果与 {{char}} 的反应；不得省略、弱化、否定、回滚或擅自解释其真实意图。
 - 不得编造、补全或改写 {{user}} 的台词；正文确需重现时，必须完整、原样引用，不得删减、截断或替换措辞。
 - 不得替 {{user}} 新增、延续或完成未明确给出的发言、行动、决定、态度或心理。叙述应侧重 {{char}} 与其他角色，需要 {{user}} 回答、选择或行动时，停在可供回应的位置。
 - 未经 {{user}} 明确推动，不得快速推进时间，也不得用时间跳跃绕过需要 {{user}} 回应的过程。
-</anti_robbery>`
+</${antiRobberyTag}>`
         }),
         antiDeification: Object.freeze({
             name: '防神化',
