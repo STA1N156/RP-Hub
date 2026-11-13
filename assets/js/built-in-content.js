@@ -473,7 +473,7 @@ You are carrying out an ongoing fictional writing task. Act as a storyteller and
 - 不得编造、补全或改写 {{user}} 的台词；正文确需重现时，必须完整、原样引用，不得删减、截断或替换措辞。
 - 不得替 {{user}} 新增、延续或完成未明确给出的发言、行动、决定、态度或心理。叙述应侧重 {{char}} 与其他角色，需要 {{user}} 回答、选择或行动时，停在可供回应的位置。
 - 未经 {{user}} 明确推动，不得快速推进时间，也不得用时间跳跃绕过需要 {{user}} 回应的过程。
-</anti_robbery>`
+</AnTi_robbery>`
         }),
         antiDeification: Object.freeze({
             name: '防神化',
@@ -498,7 +498,7 @@ You are carrying out an ongoing fictional writing task. Act as a storyteller and
         antiRepeat: Object.freeze({
             name: '防重复',
             after: '防抢话',
-            content: `<AnTi_repetition>
+            content: `<anti_repetition>
 承接前文时，不复述上一轮已经完整呈现的台词、动作、环境和心理结论；只保留理解当前反应所必需的信息，并尽快进入新的互动或结果。避免连续多轮套用相同开场、收尾或描写顺序。角色固定称呼、口癖、关键事实、必要回顾及系统规定格式不属于无效重复。
 </anti_repetition>`
         }),
